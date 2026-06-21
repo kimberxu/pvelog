@@ -1,0 +1,1 @@
+pve-agent ALL=(ALL) NOPASSWD: /usr/sbin/smartctl, /usr/bin/journalctl

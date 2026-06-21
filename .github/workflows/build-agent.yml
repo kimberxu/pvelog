@@ -1,0 +1,33 @@
+name: Build Go Agent
+
+on:
+  workflow_dispatch: # 仅手动触发
+
+jobs:
+  build:
+    name: Build Go Binary
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build Agent for Linux x86_64
+        working-directory: ./agent
+        env:
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          # 编译 Go 二进制文件，移除符号表减小体积
+          go build -v -trimpath -ldflags="-s -w" -o pve-agent ./cmd/pve-agent
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pve-agent-linux-amd64
+          path: ./agent/pve-agent

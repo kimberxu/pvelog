@@ -1,0 +1,13 @@
+[Unit]
+Description=PVE AIOps Agent
+After=network.target
+
+[Service]
+Type=simple
+User=pve-agent
+ExecStart=/usr/local/bin/pve-agent -config /etc/pve-agent/agent.yaml
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
