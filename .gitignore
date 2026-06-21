@@ -47,6 +47,8 @@ controller/pve_aiops.db-journal
 # Env files & Secrets
 .env
 .env.*
+!.env.example
+
 
 # Logs
 logs/
