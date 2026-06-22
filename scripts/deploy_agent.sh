@@ -72,6 +72,7 @@ cat <<EOF > "$TEMP_CONF"
 node_id: "${NODE_ID}"
 controller_url: "${CONTROLLER_URL}"
 psk_secret: "${PSK_SECRET}"
+collect_interval_sec: 300
 filter_patterns:
   - "pam_unix"
   - "session opened for user"

@@ -2,10 +2,11 @@ import asyncio
 from db.database import AsyncSessionLocal
 from db.models import Node
 from sqlalchemy import select
+from config.settings import settings
 
 async def periodic_inspection():
     while True:
-        await asyncio.sleep(600)  # Every 10 minutes
+        await asyncio.sleep(settings.inspect_interval_sec)
         try:
             async with AsyncSessionLocal() as session:
                 result = await session.execute(select(Node))

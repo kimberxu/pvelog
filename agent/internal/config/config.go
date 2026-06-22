@@ -3,16 +3,18 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	NodeID          string   `yaml:"node_id"`
-	ControllerURL   string   `yaml:"controller_url"`
-	PSKSecret       string   `yaml:"psk_secret"`
-	FilterPatterns  []string `yaml:"filter_patterns"`
-	AgentVersion    string   `yaml:"-"`
+	NodeID             string   `yaml:"node_id"`
+	ControllerURL      string   `yaml:"controller_url"`
+	PSKSecret          string   `yaml:"psk_secret"`
+	FilterPatterns     []string `yaml:"filter_patterns"`
+	CollectIntervalSec int      `yaml:"collect_interval_sec"`
+	AgentVersion       string   `yaml:"-"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -22,8 +24,9 @@ func LoadConfig() (*Config, error) {
 	}
 
 	cfg := &Config{
-		AgentVersion:   "0.1.0",
-		FilterPatterns: []string{},
+		AgentVersion:       "0.1.0",
+		FilterPatterns:     []string{},
+		CollectIntervalSec: 300,
 	}
 
 	data, err := os.ReadFile(configPath)
@@ -44,6 +47,11 @@ func LoadConfig() (*Config, error) {
 	}
 	if envPSK := os.Getenv("PVE_PSK_SECRET"); envPSK != "" {
 		cfg.PSKSecret = envPSK
+	}
+	if envCollectInterval := os.Getenv("PVE_COLLECT_INTERVAL_SEC"); envCollectInterval != "" {
+		if val, err := strconv.Atoi(envCollectInterval); err == nil && val > 0 {
+			cfg.CollectIntervalSec = val
+		}
 	}
 
 	// Validate

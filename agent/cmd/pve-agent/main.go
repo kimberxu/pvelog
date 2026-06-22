@@ -112,7 +112,7 @@ func main() {
 
 	// Start Log Collection Loop
 	go func() {
-		ticker := time.NewTicker(30 * time.Second)
+		ticker := time.NewTicker(time.Duration(cfg.CollectIntervalSec) * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
