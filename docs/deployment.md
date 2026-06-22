@@ -33,9 +33,9 @@
        volumes:
          - ./controller:/app
        command: >
-         bash -c "pip install . && uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload"
+         bash -c "pip install . && uvicorn api.main:app --host 0.0.0.0 --port 42791 --reload"
        ports:
-         - "8000:8000"
+         - "42791:42791"
        environment:
          - DB_URL=sqlite+aiosqlite:///./pve_aiops.db
          - PSK_SECRET=your_secure_pre_shared_key   # 替换为强随机预共享密钥
@@ -79,7 +79,7 @@
    User=www-data
    WorkingDirectory=/opt/pve-aiops/controller
    EnvironmentFile=/opt/pve-aiops/controller/.env
-   ExecStart=/opt/pve-aiops/controller/venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000
+   ExecStart=/opt/pve-aiops/controller/venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 42791
    Restart=on-failure
 
    [Install]
@@ -134,7 +134,7 @@ GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o pve-agent cmd/pve-agent/mai
    在 PVE 节点创建 `/etc/pve-agent/agent.yaml`，样例如下：
    ```yaml
    node_id: "pve-node-01"                                # 当前节点唯一标识
-   controller_url: "http://<controller-ip>:8000"         # 中心端服务地址
+   controller_url: "http://<controller-ip>:42791"         # 中心端服务地址
    psk_secret: "your_secure_pre_shared_key"              # 必须与中心端 PSK_SECRET 一致
    filter_patterns:                                      # 过滤掉的日志模式
      - "pam_unix"

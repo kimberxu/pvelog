@@ -24,9 +24,10 @@ func ValidateSmart(device string) error {
 	return nil
 }
 
-func ValidateJournal(service string, minutes int) error {
-	if minutes < 1 || minutes > 60 {
-		return errors.New("minutes out of range")
+func ValidateJournal(service string, since string, until string) error {
+	rxTime := regexp.MustCompile(`^[a-zA-Z0-9\-\s:]*$`)
+	if !rxTime.MatchString(since) || !rxTime.MatchString(until) {
+		return errors.New("time parameter contains invalid characters")
 	}
 	return nil
 }

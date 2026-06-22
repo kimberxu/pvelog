@@ -10,7 +10,7 @@ NODE_USER="root"
 TARGET_DIR="/usr/local/bin"
 CONF_DIR="/etc/pve-agent"
 PSK_SECRET="YOUR_SECURE_PSK_HERE"
-CONTROLLER_URL="http://localhost:8000"
+CONTROLLER_URL="http://localhost:42791"
 NODE_ID="pve-node-01"
 
 usage() {

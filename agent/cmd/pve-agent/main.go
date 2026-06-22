@@ -42,6 +42,17 @@ func main() {
 
 	dedup := collector.NewDedup(5 * time.Minute)
 	journaldCollector := collector.NewJournaldCollector(filter, dedup)
+	
+	// Initialize cursor from file
+	cursorFile := "data/cursor.txt"
+	if err := os.MkdirAll("data", 0755); err != nil {
+		log.Printf("Warning: failed to create data directory: %v", err)
+	}
+	if data, err := os.ReadFile(cursorFile); err == nil {
+		journaldCollector.SetCursor(string(data))
+		log.Printf("Loaded previous cursor")
+	}
+
 	httpPusher := pusher.NewHttpPusher(cfg)
 	hbSender := heartbeat.NewHeartbeatSender(cfg)
 
@@ -91,7 +102,13 @@ func main() {
 						AgentVersion:  cfg.AgentVersion,
 					}
 					if err := httpPusher.PushLogs(payload); err != nil {
-						log.Printf("Failed to push logs: %v", err)
+						log.Printf("Failed to push logs: %v (will retry next tick)", err)
+					} else {
+						// Success, commit and persist cursor
+						journaldCollector.CommitCursor(cursor)
+						if err := os.WriteFile(cursorFile, []byte(cursor), 0644); err != nil {
+							log.Printf("Failed to save cursor to file: %v", err)
+						}
 					}
 				}
 			}

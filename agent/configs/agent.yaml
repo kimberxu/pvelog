@@ -1,5 +1,5 @@
 node_id: "pve-node-01"
-controller_url: "http://localhost:8000"
+controller_url: "http://localhost:42791"
 psk_secret: "YOUR_SECURE_PSK_HERE"
 filter_patterns:
   - "pam_unix"

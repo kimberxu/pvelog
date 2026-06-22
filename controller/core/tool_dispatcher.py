@@ -8,9 +8,16 @@ from config.settings import settings
 from core.tool_validator import validate_tool_call
 from db.database import AsyncSessionLocal
 from db.models import AuditLog
+from core.rate_limiter import tool_rate_limiter
 
 class ToolDispatcher:
     async def dispatch(self, node_id: str, agent_url: str, action: str, params: dict) -> dict:
+        if not tool_rate_limiter.is_allowed(node_id):
+            return {
+                "status": "rate_limited",
+                "error": f"Rate limit exceeded for node {node_id}. Please try again later."
+            }
+            
         validated_params = validate_tool_call(action, params)
         
         request_id = str(uuid.uuid4())

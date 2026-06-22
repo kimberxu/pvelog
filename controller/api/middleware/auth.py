@@ -1,5 +1,6 @@
 import hmac
 import hashlib
+import time
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -17,6 +18,14 @@ class PSKAuthMiddleware(BaseHTTPMiddleware):
         
         if not all([x_node_id, x_timestamp, x_signature]):
             return JSONResponse(status_code=401, content={"detail": "Missing Auth Headers"})
+            
+        try:
+            req_time = int(x_timestamp)
+            # Allow 5 minutes (300 seconds) clock skew
+            if abs(time.time() - req_time) > 300:
+                return JSONResponse(status_code=401, content={"detail": "Request Expired or Time Desynchronized"})
+        except ValueError:
+            return JSONResponse(status_code=401, content={"detail": "Invalid Timestamp Format"})
             
         body = await request.body()
         payload = x_node_id + x_timestamp + body.decode("utf-8")

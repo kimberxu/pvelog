@@ -7,9 +7,9 @@ services:
     volumes:
       - ./controller:/app
     command: >
-      bash -c "pip install . && uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload"
+      bash -c "pip install . && uvicorn api.main:app --host 0.0.0.0 --port 42791 --reload"
     ports:
-      - "8000:8000"
+      - "42791:42791"
     environment:
       - DB_URL=sqlite+aiosqlite:///./pve_aiops.db
       - PSK_SECRET=YOUR_SECURE_PSK_HERE

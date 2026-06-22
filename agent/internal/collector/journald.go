@@ -30,9 +30,11 @@ func NewJournaldCollector(filter *Filter, dedup *Dedup) *JournaldCollector {
 
 // ReadLogs reads from journalctl incrementally
 func (c *JournaldCollector) ReadLogs(ctx context.Context) ([]LogEntry, string, int, int, error) {
-	args := []string{"-o", "json", "-n", "100"}
+	var args []string
 	if c.cursor != "" {
-		args = append(args, "--after-cursor", c.cursor)
+		args = []string{"-o", "json", "--after-cursor", c.cursor}
+	} else {
+		args = []string{"-o", "json", "-n", "100"}
 	}
 	
 	cmd := exec.CommandContext(ctx, "journalctl", args...)
@@ -91,9 +93,21 @@ func (c *JournaldCollector) ReadLogs(ctx context.Context) ([]LogEntry, string, i
 	
 	cmd.Wait()
 	
+	// If no new cursor found, return the old one
+	nextCursor := c.cursor
 	if lastCursor != "" {
-		c.cursor = lastCursor
+		nextCursor = lastCursor
 	}
 	
-	return entries, c.cursor, totalCount, filteredCount, nil
+	return entries, nextCursor, totalCount, filteredCount, nil
+}
+
+// CommitCursor updates the internal cursor after a successful push
+func (c *JournaldCollector) CommitCursor(cursor string) {
+	c.cursor = cursor
+}
+
+// SetCursor initializes the cursor (e.g., from persisted state)
+func (c *JournaldCollector) SetCursor(cursor string) {
+	c.cursor = cursor
 }
