@@ -40,6 +40,18 @@ func main() {
 		log.Fatalf("Failed to create filter: %v", err)
 	}
 
+	// Fetch remote config on startup
+	remoteConfig, err := config.FetchRemoteConfig(cfg.ControllerURL, cfg.PSKSecret)
+	if err == nil && len(remoteConfig.FilterPatterns) > 0 {
+		if err := filter.UpdatePatterns(remoteConfig.FilterPatterns); err != nil {
+			log.Printf("Warning: failed to update filter patterns on startup: %v", err)
+		} else {
+			log.Printf("Successfully loaded %d filter patterns from controller", len(remoteConfig.FilterPatterns))
+		}
+	} else if err != nil {
+		log.Printf("Warning: failed to fetch remote config on startup, using local patterns: %v", err)
+	}
+
 	dedup := collector.NewDedup(5 * time.Minute)
 	journaldCollector := collector.NewJournaldCollector(filter, dedup)
 	
@@ -58,6 +70,29 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Start Config Polling Loop (every 24 hours)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				remoteConfig, err := config.FetchRemoteConfig(cfg.ControllerURL, cfg.PSKSecret)
+				if err == nil && len(remoteConfig.FilterPatterns) > 0 {
+					if err := filter.UpdatePatterns(remoteConfig.FilterPatterns); err != nil {
+						log.Printf("Failed to update filter patterns: %v", err)
+					} else {
+						log.Printf("Successfully updated %d filter patterns from controller", len(remoteConfig.FilterPatterns))
+					}
+				} else if err != nil {
+					log.Printf("Failed to fetch remote config: %v", err)
+				}
+			}
+		}
+	}()
 
 	// Start Heartbeat Loop
 	go func() {

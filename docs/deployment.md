@@ -136,11 +136,8 @@ GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o pve-agent cmd/pve-agent/mai
    node_id: "pve-node-01"                                # 当前节点唯一标识
    controller_url: "http://<controller-ip>:42791"         # 中心端服务地址
    psk_secret: "your_secure_pre_shared_key"              # 必须与中心端 PSK_SECRET 一致
-   filter_patterns:                                      # 过滤掉的日志模式
-     - "pam_unix"
-     - "session opened for user"
-     - "CRON"
    ```
+   > **注意**：日志过滤规则 (`filter_patterns`) 目前由 Controller 中心化管理，Agent 在启动时及每天会自动从 Controller 拉取最新规则，无需在此处配置。
    设置安全目录权限：
    ```bash
    sudo mkdir -p /etc/pve-agent

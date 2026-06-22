@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.routes import log_ingest, heartbeat
+from api.routes import log_ingest, heartbeat, config
 from api.middleware.auth import PSKAuthMiddleware
 from db.database import engine, Base
 from scheduler.tasks import periodic_inspection
@@ -22,3 +22,4 @@ async def startup_event():
 
 app.include_router(log_ingest.router, prefix="/api/v1", tags=["Logs"])
 app.include_router(heartbeat.router, prefix="/api/v1", tags=["Heartbeat"])
+app.include_router(config.router, prefix="/api/v1", tags=["Config"])

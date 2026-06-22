@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from typing import List
 
 class Settings(BaseSettings):
     db_url: str = "sqlite+aiosqlite:///./pve_aiops.db"
@@ -6,6 +7,9 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_key: str = "YOUR_API_KEY_HERE"  # 默认 key
     llm_model: str = "deepseek-v3.2"
+
+    # Agent Config
+    filter_patterns: List[str] = ["pam_unix", "session opened for user", "CRON"]
 
     # SMTP Config
     smtp_server: str = "smtp.example.com"
