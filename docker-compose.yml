@@ -11,6 +11,5 @@ services:
     command: uvicorn api.main:app --host 0.0.0.0 --port 42791 --reload
     ports:
       - "42791:42791"
-    environment:
-      - DB_URL=sqlite+aiosqlite:///./pve_aiops.db
-      - PSK_SECRET=YOUR_SECURE_PSK_HERE
+    env_file:
+      - .env
