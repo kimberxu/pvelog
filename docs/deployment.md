@@ -155,6 +155,8 @@ GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o pve-agent cmd/pve-agent/mai
    [Service]
    Type=simple
    User=pve-agent
+   StateDirectory=pve-agent
+   WorkingDirectory=/var/lib/pve-agent
    ExecStart=/usr/local/bin/pve-agent -config /etc/pve-agent/agent.yaml
    Restart=on-failure
    RestartSec=5s

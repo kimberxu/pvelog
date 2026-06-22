@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -25,7 +26,11 @@ func generateBatchID() string {
 }
 
 func main() {
-	cfg, err := config.LoadConfig()
+	var configPath string
+	flag.StringVar(&configPath, "config", "", "path to config file")
+	flag.Parse()
+
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}

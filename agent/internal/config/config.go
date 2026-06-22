@@ -17,8 +17,10 @@ type Config struct {
 	AgentVersion       string   `yaml:"-"`
 }
 
-func LoadConfig() (*Config, error) {
-	configPath := os.Getenv("PVE_AGENT_CONFIG")
+func LoadConfig(configPath string) (*Config, error) {
+	if configPath == "" {
+		configPath = os.Getenv("PVE_AGENT_CONFIG")
+	}
 	if configPath == "" {
 		configPath = "configs/agent.yaml"
 	}

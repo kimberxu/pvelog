@@ -5,6 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=pve-agent
+StateDirectory=pve-agent
+WorkingDirectory=/var/lib/pve-agent
 ExecStart=/usr/local/bin/pve-agent -config /etc/pve-agent/agent.yaml
 Restart=on-failure
 RestartSec=5s
