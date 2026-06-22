@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,10 +18,21 @@ import (
 	"pve-aiops/agent/internal/pusher"
 )
 
+func generateBatchID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
 	}
 
 	filter, err := collector.NewFilter(cfg.FilterPatterns)
@@ -69,8 +82,8 @@ func main() {
 				if len(entries) > 0 {
 					payload := pusher.LogPushPayload{
 						NodeID:        cfg.NodeID,
-						Hostname:      "localhost", // dynamically fetched in production
-						BatchID:       "dummy-batch", // uuid
+						Hostname:      hostname,
+						BatchID:       generateBatchID(),
 						SinceCursor:   cursor,
 						Entries:       entries,
 						EntryCount:    total,

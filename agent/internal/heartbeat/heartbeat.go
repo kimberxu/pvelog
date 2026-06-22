@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -37,9 +38,14 @@ func NewHeartbeatSender(cfg *config.Config) *HeartbeatSender {
 }
 
 func (s *HeartbeatSender) Send() error {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+
 	payload := HeartbeatPayload{
 		NodeID:             s.cfg.NodeID,
-		Hostname:           "localhost",
+		Hostname:           hostname,
 		UptimeSeconds:      3600,
 		AgentVersion:       s.cfg.AgentVersion,
 		CpuUsagePercent:    10.5,
