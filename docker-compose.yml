@@ -13,3 +13,7 @@ services:
       - "42791:42791"
     env_file:
       - .env
+    extra_hosts:
+      - "h110:192.168.1.10"  # 替换成 PVE 节点 h110 真实的局域网 IP
+      - "pve:192.168.1.11"
+      - "songyuan:192.168.2.10"      
