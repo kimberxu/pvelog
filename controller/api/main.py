@@ -40,6 +40,13 @@ async def startup_event():
             await conn.execute(text("ALTER TABLE nodes ADD COLUMN agent_url VARCHAR(255)"))
         except Exception:
             pass
+            
+        # Auto-migrate: add created_at to analysis_records if missing
+        try:
+            await conn.execute(text("ALTER TABLE analysis_records ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+        except Exception:
+            pass
+            
         await conn.run_sync(Base.metadata.create_all)
     # Start periodic inspection
     asyncio.create_task(periodic_inspection())
