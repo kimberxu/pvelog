@@ -32,11 +32,60 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
         {
             "type": "function",
             "function": {
-                "name": action,
-                "description": f"Execute {action} on the node",
-                "parameters": {"type": "object", "properties": {}, "additionalProperties": True}
+                "name": "diagnose_ping",
+                "description": "Ping a target IP address to check network connectivity.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_ip": {"type": "string", "description": "The IP address to ping."}
+                    },
+                    "required": ["target_ip"]
+                }
             }
-        } for action in ALLOWED_ACTIONS
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "diagnose_smart",
+                "description": "Check SMART status for a specific disk device.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "device": {"type": "string", "description": "The device name (e.g., sda, nvme0n1)."}
+                    },
+                    "required": ["device"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_detailed_journal",
+                "description": "Get detailed systemd journal logs for a specific service.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "service": {"type": "string", "description": "The service name (e.g., corosync.service)."},
+                        "minutes": {"type": "integer", "description": "Number of minutes of logs to fetch (1-60)."}
+                    },
+                    "required": ["service"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "check_service_status",
+                "description": "Check the systemctl status of a specific service.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "service": {"type": "string", "description": "The service name (e.g., corosync.service)."}
+                    },
+                    "required": ["service"]
+                }
+            }
+        }
     ]
     
     logger.info(f"[Analyzer] Calling LLM to analyze logs (node: {state['node_id']}, iteration: {state['iterations'] + 1})")
