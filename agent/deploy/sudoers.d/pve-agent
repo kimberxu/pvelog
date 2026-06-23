@@ -1,1 +1,1 @@
-pve-agent ALL=(ALL) NOPASSWD: /usr/sbin/smartctl, /usr/bin/journalctl
+pve-agent ALL=(root) NOPASSWD: NOEXEC: /usr/sbin/smartctl, /usr/bin/journalctl

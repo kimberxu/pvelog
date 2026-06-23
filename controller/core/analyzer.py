@@ -71,20 +71,6 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
                     "required": ["service"]
                 }
             }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "check_service_status",
-                "description": "检查特定服务的 systemctl 状态。",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "service": {"type": "string", "description": "服务名称 (例如: corosync.service)。"}
-                    },
-                    "required": ["service"]
-                }
-            }
         }
     ]
     

@@ -46,7 +46,7 @@ fi
 # 3. 配置 sudoers 免密白名单
 echo "[3/6] 配置 sudo 免密提权白名单 ..."
 mkdir -p /etc/sudoers.d
-echo "pve-agent ALL=(ALL) NOPASSWD: /usr/sbin/smartctl, /usr/bin/journalctl" > /etc/sudoers.d/pve-agent
+echo "pve-agent ALL=(root) NOPASSWD: NOEXEC: /usr/sbin/smartctl, /usr/bin/journalctl" > /etc/sudoers.d/pve-agent
 chmod 440 /etc/sudoers.d/pve-agent
 echo "      已授权 smartctl 和 journalctl 的免密执行权限。"
 

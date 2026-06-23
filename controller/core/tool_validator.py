@@ -31,23 +31,10 @@ class GetDetailedJournalParams(BaseModel):
             raise ValueError("Time parameter contains invalid characters.")
         return v
 
-class CheckServiceStatusParams(BaseModel):
-    service: str
-
-    @field_validator('service')
-    def validate_service(cls, v):
-        if v.endswith('.service'):
-            v = v[:-8]
-        allowed = ["corosync", "pveproxy", "ceph-mon", "pvedaemon", "pve-cluster"]
-        if v not in allowed:
-            raise ValueError(f"Service {v} is not allowed.")
-        return v
-
 ACTION_SCHEMAS: Dict[str, Type[BaseModel]] = {
     "diagnose_ping": DiagnosePingParams,
     "diagnose_smart": DiagnoseSmartParams,
     "get_detailed_journal": GetDetailedJournalParams,
-    "check_service_status": CheckServiceStatusParams,
 }
 
 def validate_tool_call(action: str, params: Dict[str, Any]) -> BaseModel:

@@ -127,7 +127,7 @@ GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o pve-agent cmd/pve-agent/mai
    ```bash
    # 创建权限定义文件并写入配置
    sudo mkdir -p /etc/sudoers.d
-   sudo bash -c 'echo "pve-agent ALL=(ALL) NOPASSWD: /usr/sbin/smartctl, /usr/bin/journalctl" > /etc/sudoers.d/pve-agent'
+   sudo bash -c 'echo "pve-agent ALL=(root) NOPASSWD: NOEXEC: /usr/sbin/smartctl, /usr/bin/journalctl" > /etc/sudoers.d/pve-agent'
    sudo chmod 440 /etc/sudoers.d/pve-agent
    ```
 
