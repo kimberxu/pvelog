@@ -14,11 +14,13 @@ class AnalyzerState(TypedDict):
     messages: List[Dict[str, str]]
     final_report: Optional[str]
     severity: Optional[str]
+    tokens_used: int
 
 def initialize_analysis(state: AnalyzerState) -> AnalyzerState:
     system_message = {"role": "system", "content": SYSTEM_PROMPT.format(logs=state["logs"])}
     state["messages"] = [system_message]
     state["iterations"] = 0
+    state["tokens_used"] = 0
     return state
 
 async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
@@ -35,6 +37,10 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
     
     response = await llm_client.chat_completion(state["messages"], tools=tools)
     
+    if response:
+        usage = response.get("usage", {})
+        state["tokens_used"] = state.get("tokens_used", 0) + usage.get("total_tokens", 0)
+        
     if response and "choices" in response and len(response["choices"]) > 0:
         message = response["choices"][0]["message"]
         state["messages"].append(message)
@@ -42,8 +48,17 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
         if message.get("tool_calls"):
             pass # continue
         else:
-            state["final_report"] = message.get("content", "")
-            state["severity"] = "WARNING" 
+            content = message.get("content", "")
+            state["final_report"] = content
+            
+            severity = "WARNING" 
+            for line in content.split("\n"):
+                if line.startswith("SEVERITY:"):
+                    sev_str = line.split(":", 1)[1].strip().upper()
+                    if sev_str in ["INFO", "WARNING", "ERROR", "CRITICAL"]:
+                        severity = sev_str
+                    break
+            state["severity"] = severity 
             
     state["iterations"] += 1
     return state

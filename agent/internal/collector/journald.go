@@ -81,6 +81,11 @@ func (c *JournaldCollector) ReadLogs(ctx context.Context) ([]LogEntry, string, i
 		priorityStr, _ := raw["PRIORITY"].(string)
 		priority, _ := strconv.Atoi(priorityStr)
 		unit, _ := raw["_SYSTEMD_UNIT"].(string)
+		
+		if unit == "pve-agent.service" {
+			continue
+		}
+		
 		tsStr, _ := raw["__REALTIME_TIMESTAMP"].(string)
 		
 		entries = append(entries, LogEntry{

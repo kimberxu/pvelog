@@ -14,6 +14,7 @@ type Config struct {
 	PSKSecret          string   `yaml:"psk_secret"`
 	FilterPatterns     []string `yaml:"filter_patterns"`
 	CollectIntervalSec int      `yaml:"collect_interval_sec"`
+	AgentListenAddr    string   `yaml:"agent_listen_addr"`
 	AgentVersion       string   `yaml:"-"`
 }
 
@@ -29,6 +30,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		AgentVersion:       "0.1.0",
 		FilterPatterns:     []string{},
 		CollectIntervalSec: 300,
+		AgentListenAddr:    "0.0.0.0:38472",
 	}
 
 	data, err := os.ReadFile(configPath)
@@ -54,6 +56,9 @@ func LoadConfig(configPath string) (*Config, error) {
 		if val, err := strconv.Atoi(envCollectInterval); err == nil && val > 0 {
 			cfg.CollectIntervalSec = val
 		}
+	}
+	if envAddr := os.Getenv("PVE_AGENT_LISTEN_ADDR"); envAddr != "" {
+		cfg.AgentListenAddr = envAddr
 	}
 
 	// Validate

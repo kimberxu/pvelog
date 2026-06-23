@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,6 +19,7 @@ type HeartbeatPayload struct {
 	Hostname           string             `json:"hostname"`
 	UptimeSeconds      int                `json:"uptime_seconds"`
 	AgentVersion       string             `json:"agent_version"`
+	AgentUrl           string             `json:"agent_url"`
 	CpuUsagePercent    float64            `json:"cpu_usage_percent"`
 	MemoryUsagePercent float64            `json:"memory_usage_percent"`
 	DiskUsage          map[string]float64 `json:"disk_usage"`
@@ -43,11 +45,18 @@ func (s *HeartbeatSender) Send() error {
 		hostname = "unknown"
 	}
 
+	_, port, err := net.SplitHostPort(s.cfg.AgentListenAddr)
+	if err != nil {
+		port = "38472"
+	}
+	agentUrl := fmt.Sprintf("http://%s:%s", hostname, port)
+
 	payload := HeartbeatPayload{
 		NodeID:             s.cfg.NodeID,
 		Hostname:           hostname,
 		UptimeSeconds:      3600,
 		AgentVersion:       s.cfg.AgentVersion,
+		AgentUrl:           agentUrl,
 		CpuUsagePercent:    10.5,
 		MemoryUsagePercent: 40.2,
 		DiskUsage: map[string]float64{

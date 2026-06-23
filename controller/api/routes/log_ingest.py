@@ -5,7 +5,8 @@ from typing import List
 import datetime
 
 from db.database import get_db
-from db.models import LogBatch, Node
+from db.models import LogBatch, Node, LogEntry
+from core.log_sanitizer import log_sanitizer
 
 router = APIRouter()
 
@@ -56,6 +57,18 @@ async def ingest_logs(
         filtered_count=request.filtered_count
     )
     db.add(batch)
+    
+    # Create log entries
+    for entry in request.entries:
+        log_entry = LogEntry(
+            batch_id=request.batch_id,
+            node_id=request.node_id,
+            timestamp=entry.timestamp,
+            priority=entry.priority,
+            unit=entry.unit,
+            message=log_sanitizer.sanitize(entry.message)
+        )
+        db.add(log_entry)
     
     await db.commit()
     return {"status": "success", "batch_id": request.batch_id}

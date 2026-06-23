@@ -107,8 +107,6 @@ func main() {
 		sendHeartbeat := func() {
 			if err := hbSender.Send(); err != nil {
 				log.Printf("Heartbeat failed: %v", err)
-			} else {
-				log.Printf("Heartbeat sent successfully")
 			}
 		}
 
@@ -135,7 +133,9 @@ func main() {
 				return
 			}
 
-			log.Printf("Read %d logs, %d filtered, %d to push", total, filtered, len(entries))
+			if total > 0 {
+				log.Printf("Read %d logs, %d filtered, %d to push", total, filtered, len(entries))
+			}
 
 			pushSuccess := true
 			if len(entries) > 0 {
@@ -183,12 +183,12 @@ func main() {
 	mux.Handle("/api/v1/execute", handler)
 
 	server := &http.Server{
-		Addr:    "127.0.0.1:8080",
+		Addr:    cfg.AgentListenAddr,
 		Handler: mux,
 	}
 
 	go func() {
-		log.Println("Starting local agent API on 127.0.0.1:8080")
+		log.Printf("Starting local agent API on %s", cfg.AgentListenAddr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Listen failed: %v", err)
 		}

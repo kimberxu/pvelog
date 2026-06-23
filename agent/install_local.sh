@@ -35,9 +35,12 @@ chmod +x "$TARGET_PATH"
 echo "[2/6] 配置系统运行用户 pve-agent ..."
 if id -u pve-agent >/dev/null 2>&1; then
     echo "      用户 pve-agent 已存在，跳过创建。"
+    # 确保已有用户也在 systemd-journal 组中
+    usermod -aG systemd-journal pve-agent 2>/dev/null || true
 else
-    useradd -r -s /usr/sbin/nologin pve-agent
-    echo "      已创建独立系统用户 pve-agent。"
+    # 创建用户并直接加入 systemd-journal 组
+    useradd -r -s /usr/sbin/nologin -G systemd-journal pve-agent
+    echo "      已创建独立系统用户 pve-agent 并加入 systemd-journal 组。"
 fi
 
 # 3. 配置 sudoers 免密白名单

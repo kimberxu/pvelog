@@ -13,6 +13,7 @@ class HeartbeatRequest(BaseModel):
     hostname: str
     uptime_seconds: int
     agent_version: str
+    agent_url: str = ""
     cpu_usage_percent: float
     memory_usage_percent: float
     disk_usage: dict
@@ -31,12 +32,15 @@ async def receive_heartbeat(
             id=request.node_id,
             hostname=request.hostname,
             agent_version=request.agent_version,
+            agent_url=request.agent_url,
             last_heartbeat=datetime.datetime.utcnow()
         )
         db.add(node)
     else:
         node.hostname = request.hostname
         node.agent_version = request.agent_version
+        if request.agent_url:
+            node.agent_url = request.agent_url
         node.last_heartbeat = datetime.datetime.utcnow()
         
     await db.commit()
