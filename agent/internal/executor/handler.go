@@ -3,6 +3,7 @@ package executor
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -45,6 +46,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
+		log.Printf("[Executor] Failed to read body for request %s", reqID)
 		http.Error(w, "Failed to read body", http.StatusBadRequest)
 		return
 	}
@@ -53,22 +55,29 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	signPayload := reqID + string(bodyBytes)
 	
 	if !auth.VerifySignature(signPayload, sig, h.cfg.PSKSecret) {
+		log.Printf("[Executor] Invalid signature for request %s", reqID)
 		http.Error(w, "Invalid signature", http.StatusUnauthorized)
 		return
 	}
 
 	var req ExecuteRequest
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
+		log.Printf("[Executor] Failed to unmarshal request %s: %v", reqID, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	log.Printf("[Executor] Executing action '%s' (req: %s)", req.Action, req.RequestID)
+	
 	res, err := ExecuteAction(r.Context(), req.Action, req.Params)
 	status := "success"
 	errMsg := ""
 	if err != nil {
 		status = "error"
 		errMsg = err.Error()
+		log.Printf("[Executor] Action '%s' failed: %v", req.Action, err)
+	} else {
+		log.Printf("[Executor] Action '%s' completed successfully", req.Action)
 	}
 
 	response := ExecuteResponse{
