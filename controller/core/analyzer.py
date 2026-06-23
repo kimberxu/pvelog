@@ -83,7 +83,16 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
         
     if response and "choices" in response and len(response["choices"]) > 0:
         message = response["choices"][0]["message"]
-        state["messages"].append(message)
+        
+        # Clean up message to remove provider-specific fields that cause 400 Bad Request
+        cleaned_message = {
+            "role": message.get("role", "assistant"),
+            "content": message.get("content")
+        }
+        if "tool_calls" in message:
+            cleaned_message["tool_calls"] = message["tool_calls"]
+            
+        state["messages"].append(cleaned_message)
         
         if message.get("tool_calls"):
             tool_names = [tc["function"]["name"] for tc in message["tool_calls"]]
