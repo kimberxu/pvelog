@@ -2,6 +2,7 @@ package executor
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"time"
 
@@ -42,17 +43,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reqID := r.Header.Get("X-Request-ID")
 	sig := r.Header.Get("X-Signature")
 
-	var req ExecuteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read body", http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
 
-	bodyBytes, _ := json.Marshal(req)
 	signPayload := reqID + string(bodyBytes)
 	
 	if !auth.VerifySignature(signPayload, sig, h.cfg.PSKSecret) {
 		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+
+	var req ExecuteRequest
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

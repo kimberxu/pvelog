@@ -36,6 +36,8 @@ class CheckServiceStatusParams(BaseModel):
 
     @field_validator('service')
     def validate_service(cls, v):
+        if v.endswith('.service'):
+            v = v[:-8]
         allowed = ["corosync", "pveproxy", "ceph-mon", "pvedaemon", "pve-cluster"]
         if v not in allowed:
             raise ValueError(f"Service {v} is not allowed.")
