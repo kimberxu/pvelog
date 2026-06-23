@@ -1,10 +1,13 @@
 import json
+import logging
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, List, Dict, Any, Optional
 from services.llm_client import llm_client
 from config.prompts import SYSTEM_PROMPT, TOOL_CALL_SYSTEM_PROMPT
 from config.allowed_actions import ALLOWED_ACTIONS
 from core.tool_dispatcher import tool_dispatcher
+
+logger = logging.getLogger(__name__)
 
 class AnalyzerState(TypedDict):
     logs: str
@@ -17,6 +20,7 @@ class AnalyzerState(TypedDict):
     tokens_used: int
 
 def initialize_analysis(state: AnalyzerState) -> AnalyzerState:
+    logger.info(f"[Analyzer] Initializing analysis for node: {state['node_id']}")
     system_message = {"role": "system", "content": SYSTEM_PROMPT.format(logs=state["logs"])}
     state["messages"] = [system_message]
     state["iterations"] = 0
@@ -35,6 +39,7 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
         } for action in ALLOWED_ACTIONS
     ]
     
+    logger.info(f"[Analyzer] Calling LLM to analyze logs (node: {state['node_id']}, iteration: {state['iterations'] + 1})")
     response = await llm_client.chat_completion(state["messages"], tools=tools)
     
     if response:
@@ -46,7 +51,8 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
         state["messages"].append(message)
         
         if message.get("tool_calls"):
-            pass # continue
+            tool_names = [tc["function"]["name"] for tc in message["tool_calls"]]
+            logger.info(f"[Analyzer] LLM requested tool execution: {tool_names}")
         else:
             content = message.get("content", "")
             state["final_report"] = content
@@ -59,6 +65,7 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
                         severity = sev_str
                     break
             state["severity"] = severity 
+            logger.info(f"[Analyzer] LLM analysis completed. Severity: {severity}. Tokens used so far: {state['tokens_used']}")
             
     state["iterations"] += 1
     return state
@@ -72,10 +79,13 @@ async def execute_tools(state: AnalyzerState) -> AnalyzerState:
         action = func["name"]
         params = json.loads(func.get("arguments", "{}"))
         
+        logger.info(f"[Analyzer] Dispatching tool '{action}' on node '{state['node_id']}' with parameters: {params}")
         try:
             result = await tool_dispatcher.dispatch(state["node_id"], state["agent_url"], action, params)
             tool_res = json.dumps(result.get("result", {}))
+            logger.info(f"[Analyzer] Tool '{action}' completed with status: {result.get('status', 'success')}")
         except Exception as e:
+            logger.error(f"[Analyzer] Tool '{action}' failed: {e}", exc_info=True)
             tool_res = str(e)
             
         state["messages"].append({

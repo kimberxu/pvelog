@@ -60,6 +60,7 @@ PVE AIOps 是一个基于大语言模型 (LLM) 和 LangGraph 的 Proxmox VE (PVE
 | `SMTP_USERNAME` / `PWD`| 告警邮件 SMTP 登录账号和密码 | `your_email@example.com` / `your_email_password` |
 | `EMAIL_FROM` | 告警邮件的发件人地址 | `your_email@example.com` |
 | `ALERT_EMAIL_TO` | 告警邮件接收人的地址 | `admin@example.com` |
+| `LOG_LEVEL` | 日志级别 (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`；设为 `DEBUG` 时可详细追踪大模型调用细节及 Agent 执行步骤) | `INFO` |
 
 ### 节点端 (Agent) 配置 (`agent.yaml`)
 
@@ -72,6 +73,27 @@ PVE AIOps 是一个基于大语言模型 (LLM) 和 LangGraph 的 Proxmox VE (PVE
 | `psk_secret` | `PVE_PSK_SECRET` | 预共享安全密钥，需与中心端一致 | **必填 (无默认值)** |
 | `collect_interval_sec`| `PVE_COLLECT_INTERVAL_SEC` | Agent 收集并向中心端推送日志的时间间隔（秒） | `300` |
 | `filter_patterns` | 无 | 本地日志降噪正则表达式列表 | `[]` (运行时自动从中心端同步) |
+
+## 📊 日志分析与大模型诊断记录查询
+
+系统会自动将大语言模型（LLM）的分析报告、检测出的异常严重程度以及相关 Token 开销持久化到数据库。可以通过以下两种方式进行查询：
+
+### 1. HTTP 接口查询（推荐）
+中心端提供便捷的查询接口，便于通过浏览器、Postman 或 curl 获取诊断信息：
+* **最近分析列表**（支持通过参数 `node_id` 过滤，以及 `limit` 限制返回条数，默认返回最近 20 条记录）：
+  ```bash
+  curl http://localhost:42791/api/v1/analysis?limit=10
+  ```
+* **单条分析报告详情**：
+  ```bash
+  curl http://localhost:42791/api/v1/analysis/{analysis_id}
+  ```
+
+### 2. 数据库直接查询
+使用 `sqlite3` 命令直接查询数据库中的 `analysis_records` 表：
+```bash
+sqlite3 controller/pve_aiops.db "SELECT id, node_id, severity, tool_calls_count, llm_tokens_used, created_at FROM analysis_records ORDER BY created_at DESC LIMIT 5;"
+```
 
 ## 🔒 安全说明
 

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.routes import log_ingest, heartbeat, config
+from api.routes import log_ingest, heartbeat, config, analysis
 from api.middleware.auth import PSKAuthMiddleware
 from db.database import engine, Base
 from scheduler.tasks import periodic_inspection, cleanup_old_data
@@ -18,6 +18,11 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
+
+# Suppress verbose debug logs from third-party libraries
+logging.getLogger("aiosqlite").setLevel(logging.INFO)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Route uvicorn loggers to root logger
 for logger_name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
@@ -58,3 +63,4 @@ async def startup_event():
 app.include_router(log_ingest.router, prefix="/api/v1", tags=["Logs"])
 app.include_router(heartbeat.router, prefix="/api/v1", tags=["Heartbeat"])
 app.include_router(config.router, prefix="/api/v1", tags=["Config"])
+app.include_router(analysis.router, prefix="/api/v1", tags=["Analysis"])

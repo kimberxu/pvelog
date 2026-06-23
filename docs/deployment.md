@@ -67,6 +67,7 @@
    LLM_BASE_URL=https://api.openai.com/v1          # 替换为实际 LLM 接口地址
    LLM_API_KEY=sk-...                             # 替换为实际 LLM API 秘钥
    LLM_MODEL=deepseek-v3.2
+   LOG_LEVEL=INFO                                 # 日志级别，设置为 DEBUG 以查看大模型调用详情和 Agent 执行步骤
    ```
 5. 使用 Systemd 管理中心端服务，创建 `/etc/systemd/system/pve-controller.service`：
    ```ini
@@ -184,14 +185,27 @@ GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o pve-agent cmd/pve-agent/mai
   journalctl -u pve-agent -f
   ```
 
-### 4.2 验证心跳和日志接收
-当 Agent 成功运行后，中心端会接收到来自 Agent 的心跳和过滤后的日志。你可以查询数据库确认：
-```bash
-# 在中心端查看数据库生成的表数据
-sqlite3 /var/lib/pve-aiops/pve_aiops.db "SELECT * FROM Node;"
-```
+### 4.2 验证心跳、日志接收和大模型分析结果
+当 Agent 成功运行后，中心端会接收到来自 Agent 的心跳和过滤后的日志，并在后台自动触发大模型分析工作流。你可以查询数据库或 API 确认：
+
+1. **查看心跳节点信息**：
+   ```bash
+   sqlite3 /var/lib/pve-aiops/pve_aiops.db "SELECT * FROM nodes;"
+   ```
+
+2. **查看大模型分析记录**：
+   - **通过 HTTP API（推荐）**：
+     ```bash
+     # 查询最近 5 条分析报告
+     curl http://localhost:42791/api/v1/analysis?limit=5
+     ```
+   - **通过直接查询数据库**：
+     ```bash
+     sqlite3 /var/lib/pve-aiops/pve_aiops.db "SELECT id, node_id, severity, tool_calls_count, created_at FROM analysis_records ORDER BY created_at DESC LIMIT 5;"
+     ```
 
 ### 4.3 诊断白名单动作测试
+
 中心端可以下发限定白名单动作：
 1. `diagnose_ping`: 测试内网 IP 连接状态。
 2. `diagnose_smart`: 获取磁盘 S.M.A.R.T. 健康状态。
