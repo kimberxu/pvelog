@@ -10,7 +10,7 @@ from core.log_sanitizer import log_sanitizer
 
 router = APIRouter()
 
-class LogEntry(BaseModel):
+class LogEntrySchema(BaseModel):
     timestamp: str
     priority: int
     unit: str
@@ -21,7 +21,7 @@ class LogPushRequest(BaseModel):
     hostname: str
     batch_id: str
     since_cursor: str
-    entries: List[LogEntry]
+    entries: List[LogEntrySchema]
     entry_count: int
     filtered_count: int
     agent_version: str
