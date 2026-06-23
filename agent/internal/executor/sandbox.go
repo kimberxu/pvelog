@@ -38,7 +38,10 @@ func SafeExec(ctx context.Context, timeout time.Duration, command string, args .
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode = exitError.ExitCode()
 		} else {
-			exitCode = -1
+			return ExecutionResult{
+				ExitCode:   -1,
+				DurationMs: duration,
+			}, err
 		}
 	}
 

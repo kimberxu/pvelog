@@ -33,11 +33,11 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
             "type": "function",
             "function": {
                 "name": "diagnose_ping",
-                "description": "Ping a target IP address to check network connectivity.",
+                "description": "Ping 目标 IP 地址以检查网络连通性。",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "target_ip": {"type": "string", "description": "The IP address to ping."}
+                        "target_ip": {"type": "string", "description": "要 Ping 的 IP 地址。"}
                     },
                     "required": ["target_ip"]
                 }
@@ -47,11 +47,11 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
             "type": "function",
             "function": {
                 "name": "diagnose_smart",
-                "description": "Check SMART status for a specific disk device.",
+                "description": "检查特定磁盘设备的 SMART 状态。",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "device": {"type": "string", "description": "The device name (e.g., sda, nvme0n1)."}
+                        "device": {"type": "string", "description": "设备名称 (例如: sda, nvme0n1)。"}
                     },
                     "required": ["device"]
                 }
@@ -61,12 +61,12 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
             "type": "function",
             "function": {
                 "name": "get_detailed_journal",
-                "description": "Get detailed systemd journal logs for a specific service.",
+                "description": "获取特定服务的详细 systemd journal 日志。",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "service": {"type": "string", "description": "The service name (e.g., corosync.service)."},
-                        "minutes": {"type": "integer", "description": "Number of minutes of logs to fetch (1-60)."}
+                        "service": {"type": "string", "description": "服务名称 (例如: corosync.service)。"},
+                        "minutes": {"type": "integer", "description": "要获取的日志分钟数 (1-60)。"}
                     },
                     "required": ["service"]
                 }
@@ -76,11 +76,11 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
             "type": "function",
             "function": {
                 "name": "check_service_status",
-                "description": "Check the systemctl status of a specific service.",
+                "description": "检查特定服务的 systemctl 状态。",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "service": {"type": "string", "description": "The service name (e.g., corosync.service)."}
+                        "service": {"type": "string", "description": "服务名称 (例如: corosync.service)。"}
                     },
                     "required": ["service"]
                 }

@@ -8,6 +8,10 @@ services:
     working_dir: /app
     volumes:
       - ./controller:/app
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    environment:
+      - TZ=Asia/Shanghai
     command: uvicorn api.main:app --host 0.0.0.0 --port 42791 --reload
     ports:
       - "42791:42791"
