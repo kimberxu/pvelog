@@ -3,6 +3,9 @@ import json
 import asyncio
 from typing import Dict, Any, List
 from config.settings import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 class LLMClient:
     def __init__(self):
@@ -32,7 +35,9 @@ class LLMClient:
                         json=payload
                     )
                     response.raise_for_status()
-                    return response.json()
+                    result = response.json()
+                    logger.debug(f"LLM Response: {json.dumps(result, ensure_ascii=False)}")
+                    return result
             except httpx.HTTPError as e:
                 if attempt == max_retries - 1:
                     raise e

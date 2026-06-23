@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     llm_api_key: str = "YOUR_API_KEY_HERE"  # 默认 key
     llm_model: str = "deepseek-v3.2"
     inspect_interval_sec: int = 3600
+    log_level: str = "INFO"
 
     # Agent Config
     filter_patterns: List[str] = ["pam_unix", "session opened for user", "CRON"]
