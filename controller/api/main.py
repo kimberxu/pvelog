@@ -6,7 +6,18 @@ from scheduler.tasks import periodic_inspection
 import asyncio
 import logging
 
-logging.basicConfig(level=logging.INFO)
+# Configure root logger with timestamps
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+# Route uvicorn loggers to root logger
+for logger_name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+    logger = logging.getLogger(logger_name)
+    logger.handlers.clear()
+    logger.propagate = True
 
 app = FastAPI(title="PVE AIOps Controller")
 

@@ -103,14 +103,22 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
+		
+		sendHeartbeat := func() {
+			if err := hbSender.Send(); err != nil {
+				log.Printf("Heartbeat failed: %v", err)
+			} else {
+				log.Printf("Heartbeat sent successfully")
+			}
+		}
+
+		sendHeartbeat() // Initial run
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := hbSender.Send(); err != nil {
-					log.Printf("Heartbeat failed: %v", err)
-				}
+				sendHeartbeat()
 			}
 		}
 	}()
@@ -119,38 +127,52 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(time.Duration(cfg.CollectIntervalSec) * time.Second)
 		defer ticker.Stop()
+		
+		collectLogs := func() {
+			entries, cursor, total, filtered, err := journaldCollector.ReadLogs(ctx)
+			if err != nil {
+				log.Printf("Failed to read logs: %v", err)
+				return
+			}
+
+			log.Printf("Read %d logs, %d filtered, %d to push", total, filtered, len(entries))
+
+			pushSuccess := true
+			if len(entries) > 0 {
+				payload := pusher.LogPushPayload{
+					NodeID:        cfg.NodeID,
+					Hostname:      hostname,
+					BatchID:       generateBatchID(),
+					SinceCursor:   cursor,
+					Entries:       entries,
+					EntryCount:    total,
+					FilteredCount: filtered,
+					AgentVersion:  cfg.AgentVersion,
+				}
+				if err := httpPusher.PushLogs(payload); err != nil {
+					log.Printf("Failed to push logs: %v (will retry next tick)", err)
+					pushSuccess = false
+				} else {
+					log.Printf("Successfully pushed %d logs to controller", len(entries))
+				}
+			}
+
+			if pushSuccess && cursor != "" {
+				// Success, commit and persist cursor
+				journaldCollector.CommitCursor(cursor)
+				if err := os.WriteFile(cursorFile, []byte(cursor), 0644); err != nil {
+					log.Printf("Failed to save cursor to file: %v", err)
+				}
+			}
+		}
+
+		collectLogs() // Initial run
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				entries, cursor, total, filtered, err := journaldCollector.ReadLogs(ctx)
-				if err != nil {
-					log.Printf("Failed to read logs: %v", err)
-					continue
-				}
-
-				if len(entries) > 0 {
-					payload := pusher.LogPushPayload{
-						NodeID:        cfg.NodeID,
-						Hostname:      hostname,
-						BatchID:       generateBatchID(),
-						SinceCursor:   cursor,
-						Entries:       entries,
-						EntryCount:    total,
-						FilteredCount: filtered,
-						AgentVersion:  cfg.AgentVersion,
-					}
-					if err := httpPusher.PushLogs(payload); err != nil {
-						log.Printf("Failed to push logs: %v (will retry next tick)", err)
-					} else {
-						// Success, commit and persist cursor
-						journaldCollector.CommitCursor(cursor)
-						if err := os.WriteFile(cursorFile, []byte(cursor), 0644); err != nil {
-							log.Printf("Failed to save cursor to file: %v", err)
-						}
-					}
-				}
+				collectLogs()
 			}
 		}
 	}()

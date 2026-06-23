@@ -32,9 +32,9 @@ func NewJournaldCollector(filter *Filter, dedup *Dedup) *JournaldCollector {
 func (c *JournaldCollector) ReadLogs(ctx context.Context) ([]LogEntry, string, int, int, error) {
 	var args []string
 	if c.cursor != "" {
-		args = []string{"-o", "json", "--after-cursor", c.cursor}
+		args = []string{"--no-pager", "-o", "json", "--after-cursor", c.cursor}
 	} else {
-		args = []string{"-o", "json", "-n", "100"}
+		args = []string{"--no-pager", "-o", "json", "-n", "100"}
 	}
 	
 	cmd := exec.CommandContext(ctx, "journalctl", args...)

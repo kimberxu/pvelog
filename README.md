@@ -42,6 +42,37 @@ PVE AIOps 是一个基于大语言模型 (LLM) 和 LangGraph 的 Proxmox VE (PVE
    ./scripts/deploy_agent.sh -h <PVE_NODE_IP> -i <NODE_ID> -c <CONTROLLER_URL> -p <YOUR_PSK>
    ```
 
+## ⚙️ 配置说明
+
+系统支持通过环境变量（通常位于 `.env` 文件中）和配置文件自定义各项运行参数。以下是核心配置项及其默认值：
+
+### 中心端 (Controller) 环境配置
+
+| 变量名 | 说明 | 默认值 |
+| :--- | :--- | :--- |
+| `DB_URL` | 数据库连接字符串 | `sqlite+aiosqlite:///./pve_aiops.db` |
+| `PSK_SECRET` | 节点通信的预共享安全密钥 (建议务必修改) | `YOUR_SECURE_PSK_HERE` |
+| `LLM_BASE_URL` | 大语言模型 (LLM) 接口地址 | `https://api.openai.com/v1` |
+| `LLM_API_KEY` | 大语言模型 API 密钥 | `YOUR_API_KEY_HERE` |
+| `LLM_MODEL` | 使用的大语言模型名称 | `deepseek-v3.2` |
+| `INSPECT_INTERVAL_SEC`| 定期巡检和系统日志分析的时间间隔（秒） | `3600` |
+| `SMTP_SERVER` / `PORT` | 告警邮件 SMTP 服务器地址和端口 | `smtp.example.com` / `465` |
+| `SMTP_USERNAME` / `PWD`| 告警邮件 SMTP 登录账号和密码 | `your_email@example.com` / `your_email_password` |
+| `EMAIL_FROM` | 告警邮件的发件人地址 | `your_email@example.com` |
+| `ALERT_EMAIL_TO` | 告警邮件接收人的地址 | `admin@example.com` |
+
+### 节点端 (Agent) 配置 (`agent.yaml`)
+
+节点端可通过配置文件或环境变量进行参数配置。环境变量优先级高于配置文件。
+
+| 配置项 | 对应环境变量 | 说明 | 默认值 |
+| :--- | :--- | :--- | :--- |
+| `node_id` | `PVE_NODE_ID` | PVE 节点唯一标识 | **必填 (无默认值)** |
+| `controller_url` | `PVE_CONTROLLER_URL`| 中心控制端 API 接口地址 | **必填 (无默认值)** |
+| `psk_secret` | `PVE_PSK_SECRET` | 预共享安全密钥，需与中心端一致 | **必填 (无默认值)** |
+| `collect_interval_sec`| `PVE_COLLECT_INTERVAL_SEC` | Agent 收集并向中心端推送日志的时间间隔（秒） | `300` |
+| `filter_patterns` | 无 | 本地日志降噪正则表达式列表 | `[]` (运行时自动从中心端同步) |
+
 ## 🔒 安全说明
 
 - **PSK 鉴权**: Agent 和 Controller 间的数据通信使用预共享密钥 (PSK) 进行 HMAC-SHA256 签名校验。
