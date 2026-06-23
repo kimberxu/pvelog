@@ -29,10 +29,17 @@ app = FastAPI(title="PVE AIOps Controller")
 
 app.add_middleware(PSKAuthMiddleware)
 
+from sqlalchemy import text
+
 @app.on_event("startup")
 async def startup_event():
     # Initialize DB schema
     async with engine.begin() as conn:
+        # Auto-migrate: add agent_url to nodes if missing
+        try:
+            await conn.execute(text("ALTER TABLE nodes ADD COLUMN agent_url VARCHAR(255)"))
+        except Exception:
+            pass
         await conn.run_sync(Base.metadata.create_all)
     # Start periodic inspection
     asyncio.create_task(periodic_inspection())
