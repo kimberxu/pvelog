@@ -32,18 +32,17 @@ func ExecuteAction(ctx context.Context, action string, params json.RawMessage) (
 
 	case "get_detailed_journal":
 		service, _ := p["service"].(string)
-		since, _ := p["since"].(string)
-		until, _ := p["until"].(string)
-		if err := ValidateJournal(service, since, until); err != nil {
+		linesF, ok := p["lines"].(float64)
+		var lines int
+		if ok {
+			lines = int(linesF)
+		} else {
+			lines = 100
+		}
+		if err := ValidateJournal(service, lines); err != nil {
 			return ExecutionResult{}, err
 		}
-		args := []string{"journalctl", "-u", service, "--no-pager"}
-		if since != "" {
-			args = append(args, "--since", since)
-		}
-		if until != "" {
-			args = append(args, "--until", until)
-		}
+		args := []string{"journalctl", "-u", service, "--no-pager", "-n", fmt.Sprintf("%d", lines)}
 		return SafeExec(ctx, timeout, "sudo", args...)
 
 	case "check_service_status":

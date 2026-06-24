@@ -39,10 +39,10 @@ func (d *Dedup) cleanup() {
 func (d *Dedup) IsDuplicate(message string) bool {
 	hash := sha256.Sum256([]byte(message))
 	key := hex.EncodeToString(hash[:])
-	
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	if _, exists := d.cache[key]; exists {
 		return true
 	}

@@ -24,10 +24,9 @@ func ValidateSmart(device string) error {
 	return nil
 }
 
-func ValidateJournal(service string, since string, until string) error {
-	rxTime := regexp.MustCompile(`^[a-zA-Z0-9\-\s:]*$`)
-	if !rxTime.MatchString(since) || !rxTime.MatchString(until) {
-		return errors.New("time parameter contains invalid characters")
+func ValidateJournal(service string, lines int) error {
+	if lines < 1 || lines > 1000 {
+		return errors.New("lines parameter must be between 1 and 1000")
 	}
 	return nil
 }

@@ -1,4 +1,5 @@
 //go:build linux
+
 package executor
 
 import (
@@ -21,7 +22,7 @@ func SafeExec(ctx context.Context, timeout time.Duration, command string, args .
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, command, args...)
-	
+
 	// Create a new process group so we can kill all child processes
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 

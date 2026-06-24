@@ -59,7 +59,7 @@ func main() {
 
 	dedup := collector.NewDedup(5 * time.Minute)
 	journaldCollector := collector.NewJournaldCollector(filter, dedup)
-	
+
 	// Initialize cursor from file
 	cursorFile := "data/cursor.txt"
 	if err := os.MkdirAll("data", 0755); err != nil {
@@ -103,7 +103,7 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
-		
+
 		sendHeartbeat := func() {
 			if err := hbSender.Send(); err != nil {
 				log.Printf("Heartbeat failed: %v", err)
@@ -125,7 +125,7 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(time.Duration(cfg.CollectIntervalSec) * time.Second)
 		defer ticker.Stop()
-		
+
 		collectLogs := func() {
 			entries, cursor, total, filtered, err := journaldCollector.ReadLogs(ctx)
 			if err != nil {

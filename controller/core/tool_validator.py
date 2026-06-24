@@ -22,13 +22,12 @@ class DiagnoseSmartParams(BaseModel):
 
 class GetDetailedJournalParams(BaseModel):
     service: str
-    since: str = ""
-    until: str = ""
+    lines: int = 100
 
-    @field_validator('since', 'until')
-    def validate_time_format(cls, v):
-        if v and not re.match(r"^[a-zA-Z0-9\-\s:]+$", v):
-            raise ValueError("Time parameter contains invalid characters.")
+    @field_validator('lines')
+    def validate_lines(cls, v):
+        if not (1 <= v <= 1000):
+            raise ValueError("Lines must be between 1 and 1000.")
         return v
 
 ACTION_SCHEMAS: Dict[str, Type[BaseModel]] = {

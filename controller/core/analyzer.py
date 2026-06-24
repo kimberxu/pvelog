@@ -61,12 +61,12 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
             "type": "function",
             "function": {
                 "name": "get_detailed_journal",
-                "description": "获取特定服务的详细 systemd journal 日志。",
+                "description": "获取特定服务的最新 N 行详细 systemd journal 日志。",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "service": {"type": "string", "description": "服务名称 (例如: corosync.service)。"},
-                        "minutes": {"type": "integer", "description": "要获取的日志分钟数 (1-60)。"}
+                        "lines": {"type": "integer", "description": "要获取的日志行数 (建议 50-200，最大 500)。"}
                     },
                     "required": ["service"]
                 }

@@ -36,58 +36,58 @@ func (c *JournaldCollector) ReadLogs(ctx context.Context) ([]LogEntry, string, i
 	} else {
 		args = []string{"--no-pager", "-o", "json", "-n", "100"}
 	}
-	
+
 	cmd := exec.CommandContext(ctx, "journalctl", args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, "", 0, 0, err
 	}
-	
+
 	if err := cmd.Start(); err != nil {
 		return nil, "", 0, 0, err
 	}
-	
+
 	scanner := bufio.NewScanner(stdout)
 	var entries []LogEntry
 	var totalCount int
 	var filteredCount int
 	var lastCursor string
-	
+
 	for scanner.Scan() {
 		totalCount++
 		line := scanner.Bytes()
-		
+
 		var raw map[string]interface{}
 		if err := json.Unmarshal(line, &raw); err != nil {
 			continue
 		}
-		
+
 		msg, _ := raw["MESSAGE"].(string)
-		
+
 		if cursor, ok := raw["__CURSOR"].(string); ok {
 			lastCursor = cursor
 		}
-		
+
 		if c.filter.ShouldIgnore(msg) {
 			filteredCount++
 			continue
 		}
-		
+
 		if c.dedup.IsDuplicate(msg) {
 			filteredCount++
 			continue
 		}
-		
+
 		priorityStr, _ := raw["PRIORITY"].(string)
 		priority, _ := strconv.Atoi(priorityStr)
 		unit, _ := raw["_SYSTEMD_UNIT"].(string)
-		
+
 		if unit == "pve-agent.service" {
 			continue
 		}
-		
+
 		tsStr, _ := raw["__REALTIME_TIMESTAMP"].(string)
-		
+
 		entries = append(entries, LogEntry{
 			Timestamp: tsStr,
 			Priority:  priority,
@@ -95,15 +95,15 @@ func (c *JournaldCollector) ReadLogs(ctx context.Context) ([]LogEntry, string, i
 			Message:   msg,
 		})
 	}
-	
+
 	cmd.Wait()
-	
+
 	// If no new cursor found, return the old one
 	nextCursor := c.cursor
 	if lastCursor != "" {
 		nextCursor = lastCursor
 	}
-	
+
 	return entries, nextCursor, totalCount, filteredCount, nil
 }
 

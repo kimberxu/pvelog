@@ -51,7 +51,7 @@ func (p *HttpPusher) PushLogs(payload LogPushPayload) error {
 	}
 
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	
+
 	// X-Signature: HMAC-SHA256(node_id + timestamp + body, PSK)
 	signPayload := p.cfg.NodeID + timestamp + string(body)
 	signature := auth.GenerateSignature(signPayload, p.cfg.PSKSecret)

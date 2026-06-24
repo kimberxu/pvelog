@@ -53,7 +53,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	signPayload := reqID + string(bodyBytes)
-	
+
 	if !auth.VerifySignature(signPayload, sig, h.cfg.PSKSecret) {
 		log.Printf("[Executor] Invalid signature for request %s", reqID)
 		http.Error(w, "Invalid signature", http.StatusUnauthorized)
@@ -68,7 +68,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[Executor] Executing action '%s' (req: %s)", req.Action, req.RequestID)
-	
+
 	res, err := ExecuteAction(r.Context(), req.Action, req.Params)
 	status := "success"
 	errMsg := ""
