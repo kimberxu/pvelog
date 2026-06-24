@@ -8,6 +8,7 @@ from sqlalchemy import select, delete
 from config.settings import settings
 from core.analyzer import analyzer
 from core.alert_manager import alert_manager
+from core.log_filter import log_filter
 
 logger = logging.getLogger(__name__)
 
@@ -54,17 +55,26 @@ async def periodic_inspection():
                     logs_text = format_log_entries(entries)
                     logger.info(f"[Scheduler] Analyzing {len(entries)} logs for Node: {node.id}")
                     
-                    state = {
-                        "logs": logs_text,
-                        "node_id": node.id,
-                        "agent_url": node.agent_url,
-                        "iterations": 0,
-                        "messages": [],
-                        "final_report": "",
-                        "severity": ""
-                    }
-                    
-                    final_state = await analyzer.ainvoke(state)
+                    if log_filter.is_all_routine(entries):
+                        logger.info(f"[Scheduler] All {len(entries)} logs for Node {node.id} are routine. Skipping LLM analysis.")
+                        final_state = {
+                            "iterations": 0,
+                            "tokens_used": 0,
+                            "final_report": "No anomalies detected. All logs are routine background tasks or expected statuses.",
+                            "severity": "INFO"
+                        }
+                    else:
+                        state = {
+                            "logs": logs_text,
+                            "node_id": node.id,
+                            "agent_url": node.agent_url,
+                            "iterations": 0,
+                            "messages": [],
+                            "final_report": "",
+                            "severity": ""
+                        }
+                        
+                        final_state = await analyzer.ainvoke(state)
                     
                     report = final_state.get("final_report", "No report generated.")
                     severity = final_state.get("severity", "WARNING")

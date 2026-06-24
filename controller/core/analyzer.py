@@ -33,7 +33,7 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
             "type": "function",
             "function": {
                 "name": "diagnose_ping",
-                "description": "Ping 目标 IP 地址以检查网络连通性。",
+                "description": "Ping 目标 IP 地址以检查网络连通性。【警告】请勿对正常运行的定时任务(cron)或已知状态的服务使用。仅在遇到需要深入排查的真实网络错误时调用。",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -47,7 +47,7 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
             "type": "function",
             "function": {
                 "name": "diagnose_smart",
-                "description": "检查特定磁盘设备的 SMART 状态。",
+                "description": "检查特定磁盘设备的 SMART 状态。【警告】请勿对常规定时监控脚本日志使用，仅在日志中发现明确的磁盘 I/O 错误或 CRITICAL 报错时调用。",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -61,7 +61,7 @@ async def analyze_logs(state: AnalyzerState) -> AnalyzerState:
             "type": "function",
             "function": {
                 "name": "get_detailed_journal",
-                "description": "获取特定服务的最新 N 行详细 systemd journal 日志。",
+                "description": "获取特定服务的最新 N 行详细 systemd journal 日志。【警告】请勿对正常运行的定时任务(cron)或单节点正常集群服务使用。仅在遇到严重且具体的服务崩溃时调用。",
                 "parameters": {
                     "type": "object",
                     "properties": {
