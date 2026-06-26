@@ -1,6 +1,6 @@
 import smtplib
 from email.message import EmailMessage
-from controller.config.settings import settings
+from config.settings import settings
 
 def send_email(subject: str, body: str, to: str = None):
     to_email = to or settings.alert_email_to

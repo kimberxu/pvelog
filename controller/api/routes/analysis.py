@@ -55,7 +55,7 @@ async def get_analysis_record(
         raise HTTPException(status_code=404, detail="Analysis record not found")
     return record
 
-@router.post("/daily-report")
+@router.post("/analysis/daily-report")
 async def trigger_daily_report():
     """
     手动触发生成并发送每日报告（便于调试和确认）。
