@@ -88,6 +88,10 @@ PVE AIOps 是一个基于大语言模型 (LLM) 和 LangGraph 的 Proxmox VE (PVE
   ```bash
   curl http://localhost:42791/api/v1/analysis/{analysis_id}
   ```
+* **手动触发每日运行状态汇报**（触发后会立即发送汇总昨日各节点状态、日志分析结果、API调用次数及消耗 Token 的每日报告邮件）：
+  ```bash
+  curl -X POST http://localhost:42791/api/v1/analysis/daily-report
+  ```
 
 ### 2. 数据库直接查询
 使用 `sqlite3` 命令直接查询数据库中的 `analysis_records` 表：

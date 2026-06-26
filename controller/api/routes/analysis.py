@@ -7,6 +7,7 @@ import datetime
 from db.database import get_db
 from db.models import AnalysisRecord
 from pydantic import BaseModel
+from scheduler.tasks import generate_daily_report
 
 router = APIRouter()
 
@@ -53,3 +54,11 @@ async def get_analysis_record(
     if not record:
         raise HTTPException(status_code=404, detail="Analysis record not found")
     return record
+
+@router.post("/daily-report")
+async def trigger_daily_report():
+    """
+    手动触发生成并发送每日报告（便于调试和确认）。
+    """
+    await generate_daily_report()
+    return {"status": "success", "message": "每日报告已成功生成并发送"}

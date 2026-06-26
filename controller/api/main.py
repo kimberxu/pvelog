@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from api.routes import log_ingest, heartbeat, config, analysis
 from api.middleware.auth import PSKAuthMiddleware
 from db.database import engine, Base
-from scheduler.tasks import periodic_inspection, cleanup_old_data
+from scheduler.tasks import periodic_inspection, cleanup_old_data, daily_report_loop
 import asyncio
 import logging
 
@@ -59,6 +59,8 @@ async def startup_event():
     asyncio.create_task(periodic_inspection())
     # Start cleanup task
     asyncio.create_task(cleanup_old_data())
+    # Start daily report loop
+    asyncio.create_task(daily_report_loop())
 
 app.include_router(log_ingest.router, prefix="/api/v1", tags=["Logs"])
 app.include_router(heartbeat.router, prefix="/api/v1", tags=["Heartbeat"])

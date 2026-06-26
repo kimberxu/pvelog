@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from db.database import AsyncSessionLocal
-from db.models import Node, LogBatch, LogEntry, AnalysisRecord
+from db.models import Node, LogBatch, LogEntry, AnalysisRecord, AuditLog
 from sqlalchemy import select, delete
 from config.settings import settings
 from core.analyzer import analyzer
@@ -120,3 +120,105 @@ async def cleanup_old_data():
                 logger.info(f"[Scheduler] Cleanup completed. Removed logs older than {cutoff}")
         except Exception as e:
             logger.error(f"[Scheduler] Error during cleanup: {e}", exc_info=True)
+
+async def generate_daily_report():
+    try:
+        local_now = datetime.now().astimezone()
+        start_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        end_local = start_local + timedelta(days=1, microseconds=-1)
+        start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
+        end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+
+        async with AsyncSessionLocal() as session:
+            # Nodes
+            nodes_result = await session.execute(select(Node))
+            nodes = nodes_result.scalars().all()
+            
+            # Analysis Records
+            analysis_result = await session.execute(
+                select(AnalysisRecord).where(
+                    AnalysisRecord.created_at >= start_utc,
+                    AnalysisRecord.created_at <= end_utc
+                )
+            )
+            records = analysis_result.scalars().all()
+            
+            # Audit Logs
+            audit_result = await session.execute(
+                select(AuditLog).where(
+                    AuditLog.timestamp >= start_utc,
+                    AuditLog.timestamp <= end_utc
+                )
+            )
+            audit_logs = audit_result.scalars().all()
+
+            # Aggregate nodes
+            node_lines = []
+            for n in nodes:
+                status = "在线" if n.is_online else "离线"
+                node_lines.append(f"- [{n.id}] {n.hostname} | 状态: {status} | 版本: {n.agent_version} | 上次心跳: {n.last_heartbeat}")
+
+            # Aggregate analysis
+            severity_counts = {}
+            total_tokens = 0
+            total_tool_calls = 0
+            for r in records:
+                severity_counts[r.severity] = severity_counts.get(r.severity, 0) + 1
+                total_tokens += (r.llm_tokens_used or 0)
+                total_tool_calls += (r.tool_calls_count or 0)
+                
+            analysis_lines = []
+            for k, v in severity_counts.items():
+                analysis_lines.append(f"- {k}: {v}次")
+            if not analysis_lines:
+                analysis_lines.append("- 无记录")
+                
+            # Aggregate audit
+            api_calls = len(audit_logs)
+            success_calls = sum(1 for a in audit_logs if a.result_status == "SUCCESS")
+            failed_calls = api_calls - success_calls
+
+            date_str = start_local.strftime("%Y-%m-%d")
+            report = f"""【PVE AIOps】每日运行状态汇报 ({date_str})
+
+1. PVE 节点状态
+=========================
+{chr(10).join(node_lines) if node_lines else "- 无节点"}
+
+2. 日志分析汇总
+=========================
+总分析次数: {len(records)}
+严重程度分布:
+{chr(10).join(analysis_lines)}
+
+3. 资源与调用消耗
+=========================
+LLM API 调用次数 (总计): {api_calls} (成功: {success_calls}, 失败: {failed_calls})
+分析工具调用总计: {total_tool_calls}
+消耗总 Token 数: {total_tokens}
+
+---
+本邮件由 PVE AIOps Controller 自动生成。
+"""
+            from services.email_service import send_email
+            send_email(f"[PVE AIOps] 每日运行状态汇报 ({date_str})", report)
+            logger.info(f"[Scheduler] Daily report generated and sent for {date_str}")
+    except Exception as e:
+        logger.error(f"[Scheduler] Error generating daily report: {e}", exc_info=True)
+
+async def daily_report_loop():
+    while True:
+        try:
+            local_now = datetime.now().astimezone()
+            target = local_now.replace(hour=8, minute=40, second=0, microsecond=0)
+            if local_now >= target:
+                target += timedelta(days=1)
+            
+            sleep_seconds = (target - local_now).total_seconds()
+            logger.info(f"[Scheduler] Daily report loop sleeping for {sleep_seconds} seconds until {target}")
+            await asyncio.sleep(sleep_seconds)
+            
+            await generate_daily_report()
+        except Exception as e:
+            logger.error(f"[Scheduler] Error in daily_report_loop: {e}", exc_info=True)
+            await asyncio.sleep(60)
