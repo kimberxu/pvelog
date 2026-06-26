@@ -159,23 +159,29 @@ async def generate_daily_report():
                 node_lines.append(f"- [{n.id}] {n.hostname} | 状态: {status} | 版本: {n.agent_version} | 上次心跳: {n.last_heartbeat}")
 
             # Aggregate analysis
-            severity_counts = {}
+            severity_counts_per_node = {}
             total_tokens = 0
-            total_tool_calls = 0
+            total_llm_calls = 0
             for r in records:
-                severity_counts[r.severity] = severity_counts.get(r.severity, 0) + 1
+                node_id = r.node_id
+                if node_id not in severity_counts_per_node:
+                    severity_counts_per_node[node_id] = {}
+                severity_counts_per_node[node_id][r.severity] = severity_counts_per_node[node_id].get(r.severity, 0) + 1
                 total_tokens += (r.llm_tokens_used or 0)
-                total_tool_calls += (r.tool_calls_count or 0)
+                total_llm_calls += (r.tool_calls_count or 0)
                 
             analysis_lines = []
-            for k, v in severity_counts.items():
-                analysis_lines.append(f"- {k}: {v}次")
-            if not analysis_lines:
+            if not severity_counts_per_node:
                 analysis_lines.append("- 无记录")
+            else:
+                for node_id, counts in severity_counts_per_node.items():
+                    analysis_lines.append(f"- 节点 [{node_id}]:")
+                    for k, v in counts.items():
+                        analysis_lines.append(f"  * {k}: {v}次")
                 
             # Aggregate audit
             api_calls = len(audit_logs)
-            success_calls = sum(1 for a in audit_logs if a.result_status == "SUCCESS")
+            success_calls = sum(1 for a in audit_logs if a.result_status and a.result_status.lower() == "success")
             failed_calls = api_calls - success_calls
 
             date_str = start_local.strftime("%Y-%m-%d")
@@ -193,9 +199,9 @@ async def generate_daily_report():
 
 3. 资源与调用消耗
 =========================
-LLM API 调用次数 (总计): {api_calls} (成功: {success_calls}, 失败: {failed_calls})
-分析工具调用总计: {total_tool_calls}
-消耗总 Token 数: {total_tokens}
+LLM API 调用次数 (总计): {total_llm_calls}
+分析工具调用总计: {api_calls} (成功: {success_calls}, 失败: {failed_calls})
+消耗总 Token 数: {total_tokens:,}
 
 ---
 本邮件由 PVE AIOps Controller 自动生成。
