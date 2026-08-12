@@ -41,13 +41,13 @@ async def ingest_logs(
             id=request.node_id, 
             hostname=request.hostname,
             agent_version=request.agent_version,
-            last_heartbeat=datetime.datetime.utcnow(),
+            last_heartbeat=datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None),
             last_log_cursor=request.since_cursor
         )
         db.add(node)
     else:
         node.last_log_cursor = request.since_cursor
-        node.last_heartbeat = datetime.datetime.utcnow()
+        node.last_heartbeat = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         
     # Create batch record
     batch = LogBatch(
@@ -58,9 +58,9 @@ async def ingest_logs(
     )
     db.add(batch)
     
-    # Create log entries
-    for entry in request.entries:
-        log_entry = LogEntry(
+    # Create log entries (批量插入，避免逐条 add 的 ORM 开销)
+    log_entries = [
+        LogEntry(
             batch_id=request.batch_id,
             node_id=request.node_id,
             timestamp=entry.timestamp,
@@ -68,7 +68,9 @@ async def ingest_logs(
             unit=entry.unit,
             message=log_sanitizer.sanitize(entry.message)
         )
-        db.add(log_entry)
+        for entry in request.entries
+    ]
+    db.add_all(log_entries)
     
     await db.commit()
     return {"status": "success", "batch_id": request.batch_id}

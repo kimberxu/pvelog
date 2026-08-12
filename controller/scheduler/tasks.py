@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from db.database import AsyncSessionLocal
 from db.models import Node, LogBatch, LogEntry, AnalysisRecord, AuditLog
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, text
 from config.settings import settings
 from core.analyzer import analyzer
 from core.alert_manager import alert_manager
@@ -18,6 +18,90 @@ def format_log_entries(entries):
         lines.append(f"[{e.timestamp}] <{e.priority}> {e.unit}: {e.message}")
     return "\n".join(lines)
 
+async def _inspect_node(node_id: str, agent_url: str):
+    """分析单个节点的未处理日志。每个节点独立 session，供 asyncio.gather 并行调用。"""
+    async with AsyncSessionLocal() as session:
+        unanalyzed = (await session.execute(
+            select(LogBatch).where(
+                LogBatch.node_id == node_id,
+                LogBatch.analyzed == False
+            )
+        )).scalars().all()
+
+        if not unanalyzed:
+            logger.info(f"[Scheduler] Node {node_id}: no new logs to analyze, skipping")
+            return
+
+        batch_ids = [b.batch_id for b in unanalyzed]
+        entries = (await session.execute(
+            select(LogEntry).where(LogEntry.batch_id.in_(batch_ids))
+        )).scalars().all()
+
+        if not entries:
+            for batch in unanalyzed:
+                batch.analyzed = True
+            await session.commit()
+            return
+
+        logs_text = format_log_entries(entries)
+        logger.info(f"[Scheduler] Analyzing {len(entries)} logs for Node: {node_id}")
+
+        if log_filter.is_all_routine(entries):
+            logger.info(f"[Scheduler] All {len(entries)} logs for Node {node_id} are routine. Skipping LLM analysis.")
+            final_state = {
+                "iterations": 0,
+                "tokens_used": 0,
+                "final_report": "No anomalies detected. All logs are routine background tasks or expected statuses.",
+                "severity": "INFO"
+            }
+        else:
+            state = {
+                "logs": logs_text,
+                "node_id": node_id,
+                "agent_url": agent_url,
+                "iterations": 0,
+                "messages": [],
+                "final_report": "",
+                "severity": ""
+            }
+            final_state = await analyzer.ainvoke(state)
+
+        report = final_state.get("final_report", "No report generated.")
+        severity = final_state.get("severity", "WARNING")
+
+        analysis_id = str(uuid.uuid4())
+        record = AnalysisRecord(
+            id=analysis_id,
+            node_id=node_id,
+            severity=severity,
+            report=report,
+            tool_calls_count=final_state.get("iterations", 0),
+            llm_tokens_used=final_state.get("tokens_used", 0),
+            alert_sent=False
+        )
+
+        if severity in ["ERROR", "CRITICAL"]:
+            # 冷却检查基于 DB 最近告警记录（持久化，重启不丢）
+            cooldown_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=alert_manager.cooldown_minutes)
+            recent_alert = (await session.execute(
+                select(AnalysisRecord).where(
+                    AnalysisRecord.node_id == node_id,
+                    AnalysisRecord.alert_sent == True,
+                    AnalysisRecord.created_at >= cooldown_start
+                ).limit(1)
+            )).scalars().first()
+            if not recent_alert:
+                await asyncio.to_thread(alert_manager.send_alert, node_id, report, severity)
+                record.alert_sent = True
+
+        session.add(record)
+
+        for batch in unanalyzed:
+            batch.analyzed = True
+            batch.analysis_id = analysis_id
+
+        await session.commit()
+
 async def periodic_inspection():
     while True:
         await asyncio.sleep(settings.inspect_interval_sec)
@@ -25,82 +109,20 @@ async def periodic_inspection():
             async with AsyncSessionLocal() as session:
                 result = await session.execute(select(Node))
                 nodes = result.scalars().all()
-                for node in nodes:
-                    if not node.agent_url:
-                        logger.warning(f"[Scheduler] Node {node.id} has no agent_url, skipping analysis.")
-                        continue
-                        
-                    unanalyzed = (await session.execute(
-                        select(LogBatch).where(
-                            LogBatch.node_id == node.id,
-                            LogBatch.analyzed == False
-                        )
-                    )).scalars().all()
-                    
-                    if not unanalyzed:
-                        logger.info(f"[Scheduler] Node {node.id}: no new logs to analyze, skipping")
-                        continue
-                        
-                    batch_ids = [b.batch_id for b in unanalyzed]
-                    entries = (await session.execute(
-                        select(LogEntry).where(LogEntry.batch_id.in_(batch_ids))
-                    )).scalars().all()
-                    
-                    if not entries:
-                        for batch in unanalyzed:
-                            batch.analyzed = True
-                        await session.commit()
-                        continue
-                        
-                    logs_text = format_log_entries(entries)
-                    logger.info(f"[Scheduler] Analyzing {len(entries)} logs for Node: {node.id}")
-                    
-                    if log_filter.is_all_routine(entries):
-                        logger.info(f"[Scheduler] All {len(entries)} logs for Node {node.id} are routine. Skipping LLM analysis.")
-                        final_state = {
-                            "iterations": 0,
-                            "tokens_used": 0,
-                            "final_report": "No anomalies detected. All logs are routine background tasks or expected statuses.",
-                            "severity": "INFO"
-                        }
-                    else:
-                        state = {
-                            "logs": logs_text,
-                            "node_id": node.id,
-                            "agent_url": node.agent_url,
-                            "iterations": 0,
-                            "messages": [],
-                            "final_report": "",
-                            "severity": ""
-                        }
-                        
-                        final_state = await analyzer.ainvoke(state)
-                    
-                    report = final_state.get("final_report", "No report generated.")
-                    severity = final_state.get("severity", "WARNING")
-                    
-                    analysis_id = str(uuid.uuid4())
-                    record = AnalysisRecord(
-                        id=analysis_id,
-                        node_id=node.id,
-                        severity=severity,
-                        report=report,
-                        tool_calls_count=final_state.get("iterations", 0),
-                        llm_tokens_used=final_state.get("tokens_used", 0),
-                        alert_sent=False
-                    )
-                    
-                    if alert_manager.should_alert(node.id, severity):
-                        await asyncio.to_thread(alert_manager.send_alert, node.id, report, severity)
-                        record.alert_sent = True
-                        
-                    session.add(record)
-                    
-                    for batch in unanalyzed:
-                        batch.analyzed = True
-                        batch.analysis_id = analysis_id
-                        
-                    await session.commit()
+
+            # 并行分析各节点（每节点独立 session，互不阻塞）；失败只记日志不影响其他节点
+            tasks = [
+                _inspect_node(node.id, node.agent_url)
+                for node in nodes
+                if node.agent_url
+            ]
+            if not nodes:
+                logger.warning("[Scheduler] No nodes registered, skipping inspection")
+            for node in nodes:
+                if not node.agent_url:
+                    logger.warning(f"[Scheduler] Node {node.id} has no agent_url, skipping analysis.")
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=False)
         except Exception as e:
             logger.error(f"[Scheduler] Error during inspection: {e}", exc_info=True)
 
@@ -108,7 +130,7 @@ async def cleanup_old_data():
     while True:
         await asyncio.sleep(86400) # 24 hours
         try:
-            cutoff = datetime.utcnow() - timedelta(days=7)
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
             async with AsyncSessionLocal() as session:
                 await session.execute(
                     delete(LogEntry).where(LogEntry.received_at < cutoff)
@@ -118,6 +140,21 @@ async def cleanup_old_data():
                 )
                 await session.commit()
                 logger.info(f"[Scheduler] Cleanup completed. Removed logs older than {cutoff}")
+
+                # WAL checkpoint：合并 WAL 回主库，避免 -wal 文件无限增长
+                try:
+                    await session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+                except Exception as e:
+                    logger.warning(f"[Scheduler] wal_checkpoint failed: {e}")
+
+            # 每周日执行 VACUUM，回收删除释放的磁盘空间（SQLite 删除后文件不会自动缩小）
+            if datetime.now(timezone.utc).weekday() == 6:
+                try:
+                    async with AsyncSessionLocal() as session:
+                        await session.execute(text("VACUUM"))
+                    logger.info("[Scheduler] VACUUM completed")
+                except Exception as e:
+                    logger.error(f"[Scheduler] VACUUM failed: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"[Scheduler] Error during cleanup: {e}", exc_info=True)
 

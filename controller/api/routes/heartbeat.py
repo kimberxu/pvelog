@@ -33,7 +33,10 @@ async def receive_heartbeat(
             hostname=request.hostname,
             agent_version=request.agent_version,
             agent_url=request.agent_url,
-            last_heartbeat=datetime.datetime.utcnow()
+            last_heartbeat=datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None),
+            cpu_usage_percent=request.cpu_usage_percent,
+            memory_usage_percent=request.memory_usage_percent,
+            disk_usage=request.disk_usage,
         )
         db.add(node)
     else:
@@ -41,7 +44,10 @@ async def receive_heartbeat(
         node.agent_version = request.agent_version
         if request.agent_url:
             node.agent_url = request.agent_url
-        node.last_heartbeat = datetime.datetime.utcnow()
-        
+        node.last_heartbeat = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        node.cpu_usage_percent = request.cpu_usage_percent
+        node.memory_usage_percent = request.memory_usage_percent
+        node.disk_usage = request.disk_usage
+
     await db.commit()
     return {"status": "success"}

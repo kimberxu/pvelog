@@ -10,6 +10,10 @@ class Node(Base):
     last_heartbeat = Column(DateTime)
     last_log_cursor = Column(String(255))
     is_online = Column(Boolean, default=True)
+    # 资源指标（每次心跳更新，供状态展示与趋势分析）
+    cpu_usage_percent = Column(Float, nullable=True)
+    memory_usage_percent = Column(Float, nullable=True)
+    disk_usage = Column(JSON, nullable=True)
 
 class LogBatch(Base):
     __tablename__ = "log_batches"
