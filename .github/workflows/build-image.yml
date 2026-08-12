@@ -1,0 +1,47 @@
+name: Build Controller Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'controller/**'                 # 仅 controller 相关变更触发
+      - '.github/workflows/build-image.yml'
+    tags: ['v*']                        # 打版本 tag 必构建
+  workflow_dispatch: {}                 # 手动兜底
+
+concurrency:
+  group: build-controller-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./controller
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/controller:latest
+            ghcr.io/${{ github.repository }}/controller:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

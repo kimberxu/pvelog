@@ -1,5 +1,7 @@
 services:
   controller:
+    # 生产服务器直接拉取 GHCR 镜像，不再本地构建
+    image: ghcr.io/kimberxu/pvelog/controller:latest
     build:
       context: ./controller
       dockerfile: Dockerfile
