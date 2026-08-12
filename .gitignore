@@ -36,6 +36,8 @@ agent/tests/pve-agent
 *.sqlite3
 controller/pve_aiops.db
 controller/pve_aiops.db-journal
+controller/pve_aiops.db-wal
+controller/pve_aiops.db-shm
 data/
 
 # IDEs

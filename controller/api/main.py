@@ -49,11 +49,9 @@ async def _column_exists(conn, table: str, column: str) -> bool:
 @app.on_event("startup")
 async def startup_event():
     # 初始化 DB schema。整体容错：任何 DB 异常只记日志，绝不阻塞应用启动。
+    # 注：WAL 与 busy_timeout 已由 db/database.py 引擎级统一配置（每个连接生效）。
     try:
         async with engine.begin() as conn:
-            # SQLite 锁等待上限 30 秒，避免锁竞争时无限阻塞（此前卡死在 "Waiting for application startup."）
-            await conn.execute(text("PRAGMA busy_timeout = 30000"))
-
             await conn.run_sync(Base.metadata.create_all)
 
             # 幂等迁移：仅当列缺失时补列，不再依赖 try/except 吞异常
