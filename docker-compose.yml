@@ -1,18 +1,19 @@
-#version: '3.8'
-
 services:
   controller:
     build:
       context: ./controller
       dockerfile: Dockerfile
+    restart: unless-stopped
     working_dir: /app
     volumes:
-      - ./controller:/app
+      # SQLite 数据库持久化（独立于源码目录，生产可用 ./data 直接备份/迁移）
+      - ./data:/var/lib/pve-aiops
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     environment:
       - TZ=Asia/Shanghai
-    command: uvicorn api.main:app --host 0.0.0.0 --port 42791 --reload
+      # 覆盖 .env 中的相对路径，数据库固定在数据卷内
+      - DB_URL=sqlite+aiosqlite:////var/lib/pve-aiops/pve_aiops.db
     ports:
       - "42791:42791"
     env_file:
@@ -20,4 +21,4 @@ services:
     extra_hosts:
       - "h110:192.168.1.10"  # 替换成 PVE 节点 h110 真实的局域网 IP
       - "pve:192.168.1.11"
-      - "songyuan:192.168.2.10"      
+      - "songyuan:192.168.2.10"

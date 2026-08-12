@@ -38,23 +38,39 @@ app.add_middleware(PSKAuthMiddleware)
 
 from sqlalchemy import text
 
+logger = logging.getLogger(__name__)
+
+async def _column_exists(conn, table: str, column: str) -> bool:
+    """检查 SQLite 表是否已存在某列（幂等迁移用）。"""
+    result = await conn.execute(text(f"PRAGMA table_info({table})"))
+    rows = result.fetchall()
+    return any(row[1] == column for row in rows)
+
 @app.on_event("startup")
 async def startup_event():
-    # Initialize DB schema
-    async with engine.begin() as conn:
-        # Auto-migrate: add agent_url to nodes if missing
-        try:
-            await conn.execute(text("ALTER TABLE nodes ADD COLUMN agent_url VARCHAR(255)"))
-        except Exception:
-            pass
-            
-        # Auto-migrate: add created_at to analysis_records if missing
-        try:
-            await conn.execute(text("ALTER TABLE analysis_records ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
-        except Exception:
-            pass
-            
-        await conn.run_sync(Base.metadata.create_all)
+    # 初始化 DB schema。整体容错：任何 DB 异常只记日志，绝不阻塞应用启动。
+    try:
+        async with engine.begin() as conn:
+            # SQLite 锁等待上限 30 秒，避免锁竞争时无限阻塞（此前卡死在 "Waiting for application startup."）
+            await conn.execute(text("PRAGMA busy_timeout = 30000"))
+
+            await conn.run_sync(Base.metadata.create_all)
+
+            # 幂等迁移：仅当列缺失时补列，不再依赖 try/except 吞异常
+            if not await _column_exists(conn, "nodes", "agent_url"):
+                await conn.execute(text("ALTER TABLE nodes ADD COLUMN agent_url VARCHAR(255)"))
+                logger.info("[Startup] Migrated: nodes.agent_url")
+
+            if not await _column_exists(conn, "analysis_records", "created_at"):
+                # SQLite 限制：ADD COLUMN 不允许非恒定默认值（DEFAULT CURRENT_TIMESTAMP 会报错），
+                # 先加可空列，再回填旧数据；新行由 ORM server_default 填充
+                await conn.execute(text("ALTER TABLE analysis_records ADD COLUMN created_at DATETIME"))
+                await conn.execute(text("UPDATE analysis_records SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
+                logger.info("[Startup] Migrated: analysis_records.created_at")
+
+        logger.info("[Startup] DB schema ready")
+    except Exception as e:
+        logger.error(f"[Startup] DB initialization failed (continuing): {e}", exc_info=True)
     # Start periodic inspection
     asyncio.create_task(periodic_inspection())
     # Start cleanup task

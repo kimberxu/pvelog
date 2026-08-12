@@ -91,7 +91,7 @@ async def periodic_inspection():
                     )
                     
                     if alert_manager.should_alert(node.id, severity):
-                        alert_manager.send_alert(node.id, report, severity)
+                        await asyncio.to_thread(alert_manager.send_alert, node.id, report, severity)
                         record.alert_sent = True
                         
                     session.add(record)
@@ -207,7 +207,7 @@ LLM API 调用次数 (总计): {total_llm_calls}
 本邮件由 PVE AIOps Controller 自动生成。
 """
             from services.email_service import send_email
-            send_email(f"[PVE AIOps] 每日运行状态汇报 ({date_str})", report)
+            await asyncio.to_thread(send_email, f"[PVE AIOps] 每日运行状态汇报 ({date_str})", report)
             logger.info(f"[Scheduler] Daily report generated and sent for {date_str}")
     except Exception as e:
         logger.error(f"[Scheduler] Error generating daily report: {e}", exc_info=True)

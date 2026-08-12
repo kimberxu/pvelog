@@ -36,6 +36,7 @@ agent/tests/pve-agent
 *.sqlite3
 controller/pve_aiops.db
 controller/pve_aiops.db-journal
+data/
 
 # IDEs
 .idea/

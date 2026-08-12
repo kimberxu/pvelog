@@ -25,25 +25,30 @@
 #### 方式一：Docker Compose 部署（开发/测试）
 1. 在项目根目录下，修改 [docker-compose.yml](file:///d:/PyCharm_projects/log-analyzer-agent/docker-compose.yml)，确保配置如下环境变量：
    ```yaml
-   version: '3.8'
    services:
      controller:
-       image: python:3.11-slim
+       build:
+         context: ./controller
+         dockerfile: Dockerfile
+       restart: unless-stopped          # 容器退出/宿主重启后自动拉起，避免静默停机
        working_dir: /app
        volumes:
-         - ./controller:/app
-       command: >
-         bash -c "pip install . && uvicorn api.main:app --host 0.0.0.0 --port 42791 --reload"
+         - ./data:/var/lib/pve-aiops    # SQLite 数据库持久化（独立于源码目录）
+         - /etc/localtime:/etc/localtime:ro
+         - /etc/timezone:/etc/timezone:ro
+       environment:
+         - TZ=Asia/Shanghai
+         - DB_URL=sqlite+aiosqlite:////var/lib/pve-aiops/pve_aiops.db
+         - PSK_SECRET=your_secure_pre_shared_key   # 替换为强随机预共享密钥
        ports:
          - "42791:42791"
-       environment:
-         - DB_URL=sqlite+aiosqlite:///./pve_aiops.db
-         - PSK_SECRET=your_secure_pre_shared_key   # 替换为强随机预共享密钥
    ```
 2. 启动服务：
    ```bash
-   docker compose up -d
+   docker compose up -d --build
    ```
+   > 注意：`docker-compose.yml` 未启用 `--reload`（那是纯开发选项，会在任何源码变更时静默重启服务，
+   > 且与监听目录内的数据库文件互相干扰）。修改代码后请重新 `docker compose up -d --build`。
 
 #### 方式二：手动虚拟环境部署（生产推荐）
 1. 在 Debian 12 VM/LXC 上安装 Python 3.11+：

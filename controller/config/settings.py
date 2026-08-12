@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     smtp_password: str = "your_email_password"
     email_from: str = "your_email@example.com"
     alert_email_to: str = "admin@example.com"
+    smtp_timeout: float = 10.0
 
     class Config:
         env_file = ".env"
