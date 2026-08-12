@@ -1,10 +1,11 @@
 services:
   controller:
-    # 生产服务器直接拉取 GHCR 镜像，不再本地构建
+    # 默认拉取 GHCR 镜像，不在本地构建
     image: ghcr.io/kimberxu/pvelog/controller:latest
-    build:
-      context: ./controller
-      dockerfile: Dockerfile
+    # 本地开发需要重新构建时，取消下面注释：
+    # build:
+    #   context: ./controller
+    #   dockerfile: Dockerfile
     restart: unless-stopped
     healthcheck:
       # 进程活着但事件循环卡死时 restart 不会触发，healthcheck 才能发现并重启

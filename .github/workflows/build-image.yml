@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'controller/**'                 # 仅 controller 相关变更触发
+      - 'docker-compose.yml'            # 镜像引用变更时同步重建
       - '.github/workflows/build-image.yml'
     tags: ['v*']                        # 打版本 tag 必构建
   workflow_dispatch: {}                 # 手动兜底
