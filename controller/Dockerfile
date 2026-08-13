@@ -4,6 +4,10 @@ WORKDIR /app
 
 # 依赖层：仅 pyproject.toml 变化时才重新解析安装依赖（层缓存命中）
 # 源码变更不会破坏此层，CI/本地重复构建均秒级命中
+# 安装中文字体（图表中文渲染需要）
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml ./
 RUN python3 -c "import tomllib; deps = tomllib.load(open('pyproject.toml','rb'))['project']['dependencies']; print('\n'.join(deps))" > /tmp/deps.txt \
     && pip install --no-cache-dir -r /tmp/deps.txt

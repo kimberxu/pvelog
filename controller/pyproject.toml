@@ -11,7 +11,8 @@ dependencies = [
     "pydantic==2.13.4",
     "pydantic-settings==2.15.0",
     "sqlalchemy==2.0.52",
-    "aiosqlite==0.22.1"
+    "aiosqlite==0.22.1",
+    "matplotlib==3.11.1"
 ]
 
 [build-system]

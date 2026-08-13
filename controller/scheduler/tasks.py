@@ -9,6 +9,7 @@ from config.settings import settings
 from core.analyzer import analyzer
 from core.alert_manager import alert_manager
 from core.log_filter import log_filter
+from services.report_chart import SEVERITY_COLORS, SEVERITY_ORDER
 
 logger = logging.getLogger(__name__)
 
@@ -189,12 +190,6 @@ async def generate_daily_report():
             )
             audit_logs = audit_result.scalars().all()
 
-            # Aggregate nodes
-            node_lines = []
-            for n in nodes:
-                status = "在线" if n.is_online else "离线"
-                node_lines.append(f"- [{n.id}] {n.hostname} | 状态: {status} | 版本: {n.agent_version} | 上次心跳: {n.last_heartbeat}")
-
             # Aggregate analysis
             severity_counts_per_node = {}
             total_tokens = 0
@@ -207,44 +202,103 @@ async def generate_daily_report():
                 total_tokens += (r.llm_tokens_used or 0)
                 total_llm_calls += (r.tool_calls_count or 0)
                 
-            analysis_lines = []
-            if not severity_counts_per_node:
-                analysis_lines.append("- 无记录")
-            else:
-                for node_id, counts in severity_counts_per_node.items():
-                    analysis_lines.append(f"- 节点 [{node_id}]:")
-                    for k, v in counts.items():
-                        analysis_lines.append(f"  * {k}: {v}次")
-                
             # Aggregate audit
             api_calls = len(audit_logs)
             success_calls = sum(1 for a in audit_logs if a.result_status and a.result_status.lower() == "success")
             failed_calls = api_calls - success_calls
 
             date_str = start_local.strftime("%Y-%m-%d")
-            report = f"""【PVE AIOps】每日运行状态汇报 ({date_str})
 
-1. PVE 节点状态
-=========================
-{chr(10).join(node_lines) if node_lines else "- 无节点"}
+            # 生成图表
+            from services.report_chart import generate_charts
+            charts = generate_charts(severity_counts_per_node, api_calls, success_calls, failed_calls)
 
-2. 日志分析汇总
-=========================
-总分析次数: {len(records)}
-严重程度分布:
-{chr(10).join(analysis_lines)}
+            # 构造 HTML 邮件正文
+            node_rows = "".join(
+                f"""<tr style="border-bottom:1px solid #e0e0e0;">
+<td style="padding:6px 10px;font-size:13px;">{n.id}</td>
+<td style="padding:6px 10px;font-size:13px;">{n.hostname}</td>
+<td style="padding:6px 10px;font-size:13px;color:{'#4caf50' if n.is_online else '#f44336'};font-weight:bold;">{'在线' if n.is_online else '离线'}</td>
+<td style="padding:6px 10px;font-size:13px;">{n.agent_version}</td>
+<td style="padding:6px 10px;font-size:13px;">{n.last_heartbeat or '-'}</td>
+</tr>"""
+                for n in nodes
+            ) if nodes else "<tr><td colspan='5' style='padding:12px;color:#999;text-align:center;'>无节点</td></tr>"
 
-3. 资源与调用消耗
-=========================
-LLM API 调用次数 (总计): {total_llm_calls}
-分析工具调用总计: {api_calls} (成功: {success_calls}, 失败: {failed_calls})
-消耗总 Token 数: {total_tokens:,}
+            # 严重程度 HTML 汇总
+            sev_items = []
+            for node_id, counts in severity_counts_per_node.items():
+                badges = "".join(
+                    f"""<span style="display:inline-block;padding:1px 8px;margin:1px 2px;border-radius:3px;
+font-size:12px;color:#fff;background:{SEVERITY_COLORS.get(k, '#999')};">{k}: {v}次</span>"""
+                    for k, v in sorted(counts.items(), key=lambda x: list(SEVERITY_ORDER).index(x[0]) if x[0] in SEVERITY_ORDER else 99)
+                )
+                sev_items.append(f"<div style='margin:4px 0;'><b>节点 [{node_id}]:</b> {badges}</div>")
+            sev_html = "".join(sev_items) if sev_items else "<div style='color:#999;'>无记录</div>"
 
----
+            # 图表嵌入 HTML
+            charts_html = ""
+            if "chart_severity" in charts:
+                charts_html += f"""<div style="text-align:center;margin:15px 0;">
+<img src="cid:chart_severity" style="max-width:100%;height:auto;border:1px solid #e0e0e0;border-radius:4px;">
+</div>"""
+            if "chart_api" in charts:
+                charts_html += f"""<div style="text-align:center;margin:15px 0;">
+<img src="cid:chart_api" style="max-width:100%;height:auto;border:1px solid #e0e0e0;border-radius:4px;">
+</div>"""
+
+            html_body = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:'Noto Sans CJK SC','Microsoft YaHei',sans-serif;color:#333;max-width:720px;margin:0 auto;padding:20px;">
+
+<h2 style="color:#1565c0;border-bottom:2px solid #1565c0;padding-bottom:8px;">PVE AIOps 每日运行状态汇报 ({date_str})</h2>
+
+<h3 style="color:#37474f;margin-top:20px;">1. PVE 节点状态</h3>
+<table style="border-collapse:collapse;width:100%;margin:8px 0;border-radius:4px;overflow:hidden;">
+<thead>
+<tr style="background:#1565c0;color:#fff;">
+<th style="padding:6px 10px;text-align:left;font-size:13px;">节点</th>
+<th style="padding:6px 10px;text-align:left;font-size:13px;">主机名</th>
+<th style="padding:6px 10px;text-align:left;font-size:13px;">状态</th>
+<th style="padding:6px 10px;text-align:left;font-size:13px;">版本</th>
+<th style="padding:6px 10px;text-align:left;font-size:13px;">上次心跳</th>
+</tr>
+</thead>
+<tbody>
+{node_rows}
+</tbody>
+</table>
+
+<h3 style="color:#37474f;margin-top:25px;">2. 日志分析汇总</h3>
+<div style="background:#f5f5f5;padding:12px 16px;border-radius:4px;margin:8px 0;">
+<div style="margin:4px 0;font-size:14px;">总分析次数: <b>{len(records)}</b></div>
+<div style="margin:4px 0;font-size:14px;">严重程度分布:</div>
+{sev_html}
+</div>
+
+{charts_html}
+
+<h3 style="color:#37474f;margin-top:25px;">3. 资源与调用消耗</h3>
+<table style="border-collapse:collapse;width:100%;margin:8px 0;font-size:14px;">
+<tr><td style="padding:4px 12px;color:#666;width:180px;">LLM API 调用次数</td><td style="padding:4px 12px;font-weight:bold;">{total_llm_calls}</td></tr>
+<tr><td style="padding:4px 12px;color:#666;">分析工具调用</td><td style="padding:4px 12px;font-weight:bold;">{api_calls} (成功: {success_calls}, 失败: {failed_calls})</td></tr>
+<tr><td style="padding:4px 12px;color:#666;">消耗总 Token 数</td><td style="padding:4px 12px;font-weight:bold;">{total_tokens:,}</td></tr>
+</table>
+
+<div style="margin-top:25px;padding-top:12px;border-top:1px solid #e0e0e0;color:#999;font-size:12px;text-align:center;">
 本邮件由 PVE AIOps Controller 自动生成。
-"""
-            from services.email_service import send_email
-            await asyncio.to_thread(send_email, f"[PVE AIOps] 每日运行状态汇报 ({date_str})", report)
+</div>
+</body>
+</html>"""
+
+            from services.email_service import send_html_email
+            await asyncio.to_thread(
+                send_html_email,
+                f"[PVE AIOps] 每日运行状态汇报 ({date_str})",
+                html_body,
+                images=charts if charts else None,
+            )
             logger.info(f"[Scheduler] Daily report generated and sent for {date_str}")
     except Exception as e:
         logger.error(f"[Scheduler] Error generating daily report: {e}", exc_info=True)
