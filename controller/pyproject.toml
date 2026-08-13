@@ -12,7 +12,10 @@ dependencies = [
     "pydantic-settings==2.15.0",
     "sqlalchemy==2.0.52",
     "aiosqlite==0.22.1",
-    "matplotlib==3.11.1"
+    "matplotlib==3.11.1",
+    # numpy 2.4+ 官方 wheel 要求 x86-64-v2 指令集（PVE 老虚拟机如 kvm64 CPU type 仅 x86-64-v1，
+    # 会 SIGILL 崩溃）。固定 2.0.x（仍 v1 兼容），matplotlib 3.11.1 要求 numpy>=1.25 满足。
+    "numpy>=2.0,<2.1"
 ]
 
 [build-system]
